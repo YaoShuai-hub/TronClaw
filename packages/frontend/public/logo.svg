@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" fill="none">
+  <defs>
+    <linearGradient id="claw-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FF060A"/>
+      <stop offset="50%" stop-color="#FF4D4D"/>
+      <stop offset="100%" stop-color="#4ADE80"/>
+    </linearGradient>
+    <linearGradient id="body-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1a1a2e"/>
+      <stop offset="100%" stop-color="#16213e"/>
+    </linearGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="2" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+  <!-- Body -->
+  <ellipse cx="55" cy="68" rx="30" ry="24" fill="url(#body-gradient)" stroke="url(#claw-gradient)" stroke-width="2"/>
+  <!-- Eyes -->
+  <circle cx="45" cy="52" r="5" fill="#0ff" opacity="0.9"/>
+  <circle cx="65" cy="52" r="5" fill="#0ff" opacity="0.9"/>
+  <circle cx="46" cy="51" r="2" fill="#fff"/>
+  <circle cx="66" cy="51" r="2" fill="#fff"/>
+  <!-- Eye stalks -->
+  <line x1="45" y1="56" x2="45" y2="62" stroke="#4ADE80" stroke-width="2"/>
+  <line x1="65" y1="56" x2="65" y2="62" stroke="#4ADE80" stroke-width="2"/>
+  <!-- Left small claw -->
+  <path d="M25 60 Q15 50 20 40 Q25 35 28 42 Q30 48 25 55Z" fill="url(#claw-gradient)" opacity="0.7" filter="url(#glow)"/>
+  <!-- RIGHT BIG CLAW (signature element) -->
+  <path d="M85 55 Q105 35 110 25 Q112 20 108 22 Q100 28 95 40 L92 38 Q108 18 112 10 Q114 5 110 8 Q98 20 88 42 Q86 46 85 50Z" fill="url(#claw-gradient)" filter="url(#glow)"/>
+  <!-- Claw grip lines -->
+  <path d="M88 48 Q95 42 92 38" stroke="#fff" stroke-width="1" fill="none" opacity="0.5"/>
+  <!-- Legs -->
+  <line x1="35" y1="85" x2="28" y2="98" stroke="url(#claw-gradient)" stroke-width="2" stroke-linecap="round"/>
+  <line x1="45" y1="88" x2="40" y2="100" stroke="url(#claw-gradient)" stroke-width="2" stroke-linecap="round"/>
+  <line x1="65" y1="88" x2="70" y2="100" stroke="url(#claw-gradient)" stroke-width="2" stroke-linecap="round"/>
+  <line x1="75" y1="85" x2="82" y2="98" stroke="url(#claw-gradient)" stroke-width="2" stroke-linecap="round"/>
+  <!-- Blockchain nodes on body -->
+  <circle cx="45" cy="72" r="2.5" fill="#4ADE80" opacity="0.6"/>
+  <circle cx="55" cy="65" r="2.5" fill="#4ADE80" opacity="0.6"/>
+  <circle cx="65" cy="72" r="2.5" fill="#4ADE80" opacity="0.6"/>
+  <line x1="45" y1="72" x2="55" y2="65" stroke="#4ADE80" stroke-width="0.8" opacity="0.4"/>
+  <line x1="55" y1="65" x2="65" y2="72" stroke="#4ADE80" stroke-width="0.8" opacity="0.4"/>
+  <line x1="45" y1="72" x2="65" y2="72" stroke="#4ADE80" stroke-width="0.8" opacity="0.4"/>
+</svg>

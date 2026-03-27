@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
-import { Activity, DollarSign, TrendingUp, Zap, Bot } from 'lucide-react'
+import { motion, AnimatePresence } from 'framer-motion'
+import { Activity, DollarSign, TrendingUp, Bot, ExternalLink, Wallet, Zap } from 'lucide-react'
 import axios from 'axios'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
 
@@ -14,25 +15,11 @@ interface AgentToolCall {
   timestamp: number
 }
 
-interface BalanceData {
-  token: string
-  balance: string
-  usdValue: string
-}
-
-interface DeFiPool {
-  protocol: string
-  name: string
-  apy: string
-  tvl: string
-  riskLevel: string
-}
+interface BalanceData { token: string; balance: string; usdValue: string }
+interface DeFiPool { protocol: string; name: string; apy: string; tvl: string; riskLevel: string }
 
 const DEMO_ADDRESS = 'TFp3Ls4mHdzysbX1qxbwXdMzS8mkvhCMx6'
-
-function shorten(addr: string) {
-  return addr && addr.length > 12 ? `${addr.slice(0, 6)}...${addr.slice(-4)}` : addr
-}
+const TRONSCAN = 'https://nile.tronscan.org/#'
 
 function formatNum(n: string) {
   const num = parseFloat(n)
@@ -40,19 +27,6 @@ function formatNum(n: string) {
   if (num >= 1_000_000) return `${(num / 1_000_000).toFixed(1)}M`
   if (num >= 1_000) return `${(num / 1_000).toFixed(1)}K`
   return num.toFixed(2)
-}
-
-const TOOL_COLORS: Record<string, string> = {
-  tron_payment: 'text-green-400',
-  tron_data: 'text-purple-400',
-  tron_defi: 'text-blue-400',
-  tron_automation: 'text-orange-400',
-  tron_identity: 'text-pink-400',
-}
-
-function toolColor(tool: string) {
-  const prefix = Object.keys(TOOL_COLORS).find(k => tool.startsWith(k))
-  return prefix ? TOOL_COLORS[prefix] : 'text-gray-400'
 }
 
 function toolIcon(tool: string) {
@@ -64,13 +38,40 @@ function toolIcon(tool: string) {
   return '🔧'
 }
 
+function toolColor(tool: string) {
+  if (tool.includes('payment') || tool.includes('balance')) return 'text-orange-400'
+  if (tool.includes('data') || tool.includes('address') || tool.includes('whale')) return 'text-purple-400'
+  if (tool.includes('defi') || tool.includes('yield') || tool.includes('swap')) return 'text-blue-400'
+  if (tool.includes('auto') || tool.includes('batch')) return 'text-green-400'
+  if (tool.includes('identity')) return 'text-pink-400'
+  return 'text-text-2'
+}
+
+// Animated number counter
+function CountUp({ value, decimals = 2 }: { value: number; decimals?: number }) {
+  const [display, setDisplay] = useState(0)
+  useEffect(() => {
+    const start = display
+    const diff = value - start
+    const duration = 800
+    const startTime = performance.now()
+    const animate = (now: number) => {
+      const elapsed = now - startTime
+      const progress = Math.min(elapsed / duration, 1)
+      const eased = 1 - Math.pow(1 - progress, 3) // easeOutCubic
+      setDisplay(start + diff * eased)
+      if (progress < 1) requestAnimationFrame(animate)
+    }
+    requestAnimationFrame(animate)
+  }, [value])
+  return <>{display.toFixed(decimals)}</>
+}
+
 export default function Dashboard() {
   const [agentCalls, setAgentCalls] = useState<AgentToolCall[]>([])
   const [balances, setBalances] = useState<BalanceData[]>([])
   const [pools, setPools] = useState<DeFiPool[]>([])
   const [connected, setConnected] = useState(false)
-  const [agentCount, setAgentCount] = useState(0)
-  const wsRef = useRef<WebSocket | null>(null)
 
   // Load initial data
   useEffect(() => {
@@ -85,22 +86,16 @@ export default function Dashboard() {
         setBalances([b1.data.data, b2.data.data, b3.data.data])
         setPools(defi.data.data.slice(0, 5))
       } catch (e) {
-        console.error('Failed to load dashboard data', e)
+        console.error('Dashboard load error', e)
       }
     }
     load()
   }, [])
 
-  // WebSocket — receive real agent tool calls
+  // WebSocket
   useEffect(() => {
-    const wsUrl = `ws://${window.location.host}/ws`
-    const ws = new WebSocket(wsUrl)
-    wsRef.current = ws
-
-    ws.onopen = () => {
-      setConnected(true)
-      setAgentCount(c => c + 1)
-    }
+    const ws = new WebSocket(`ws://${window.location.host}/ws`)
+    ws.onopen = () => setConnected(true)
     ws.onclose = () => setConnected(false)
     ws.onmessage = (evt) => {
       try {
@@ -108,148 +103,161 @@ export default function Dashboard() {
         if (event.type === 'agent_tool_call') {
           setAgentCalls(prev => [event.data as AgentToolCall, ...prev].slice(0, 50))
         }
-        if (event.type === 'payment_confirmed' || event.type === 'transaction') {
-          setAgentCalls(prev => [{
-            tool: 'tron_payment_confirmed',
-            method: 'EVENT',
-            path: '/ws',
-            input: {},
-            result: event.data,
-            success: true,
-            duration: 0,
-            timestamp: event.timestamp,
-          }, ...prev].slice(0, 50))
-        }
       } catch {}
     }
     return () => ws.close()
   }, [])
 
-  const apyChartData = pools.map(p => ({
+  const apyData = pools.map(p => ({
     name: p.name.replace(' LP', '').replace(' Supply', ''),
     apy: parseFloat(p.apy),
   }))
 
+  const tokenGradient: Record<string, string> = {
+    TRX: 'from-red-500/20 to-orange-500/10',
+    USDT: 'from-green-500/20 to-emerald-500/10',
+    USDD: 'from-blue-500/20 to-cyan-500/10',
+  }
+
   return (
-    <div className="h-full overflow-y-auto bg-[#070d1a]">
-      <div className="p-6 space-y-5">
+    <div className="h-full overflow-y-auto">
+      <div className="p-6 space-y-5 max-w-6xl mx-auto">
+
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between animate-fade-in-up">
           <div>
-            <h1 className="text-xl font-bold">Dashboard</h1>
-            <p className="text-xs text-gray-500 font-mono">{DEMO_ADDRESS}</p>
+            <h1 className="text-xl font-bold text-text-0">Dashboard</h1>
+            <a href={`${TRONSCAN}/address/${DEMO_ADDRESS}`} target="_blank" rel="noopener"
+              className="text-xs text-text-3 font-mono hover:text-brand transition-colors flex items-center gap-1">
+              {DEMO_ADDRESS.slice(0, 8)}...{DEMO_ADDRESS.slice(-6)} <ExternalLink size={9} />
+            </a>
           </div>
           <div className="flex items-center gap-3">
-            <div className={`flex items-center gap-2 text-xs px-3 py-1.5 rounded-full border
-              ${connected ? 'border-green-400/30 bg-green-400/10 text-green-400' : 'border-gray-700 bg-gray-800/50 text-gray-500'}`}>
-              <span className={`w-1.5 h-1.5 rounded-full ${connected ? 'bg-green-400 animate-pulse' : 'bg-gray-600'}`} />
-              {connected ? 'Live' : 'Connecting...'}
+            <div className={`badge ${connected ? 'badge-green' : ''}`}>
+              <span className={`w-1.5 h-1.5 rounded-full ${connected ? 'bg-accent animate-pulse' : 'bg-text-3'}`} />
+              {connected ? 'Live' : 'Connecting'}
             </div>
-            {agentCount > 0 && (
-              <div className="flex items-center gap-2 text-xs px-3 py-1.5 rounded-full border border-blue-400/30 bg-blue-400/10 text-blue-400">
-                <Bot size={12} />
-                {agentCount} agent{agentCount > 1 ? 's' : ''} connected
-              </div>
-            )}
           </div>
         </div>
 
         {/* Balance Cards */}
         <div className="grid grid-cols-3 gap-4">
-          {balances.length > 0 ? balances.map(b => (
-            <div key={b.token} className="p-4 rounded-xl bg-[#0a1220] border border-white/5">
+          {balances.length > 0 ? balances.map((b, i) => (
+            <motion.div
+              key={b.token}
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: i * 0.1 }}
+              className={`glass-card p-5 bg-gradient-to-br ${tokenGradient[b.token] ?? ''}`}
+            >
               <div className="flex items-center gap-2 mb-3">
-                <DollarSign size={14} className="text-green-400" />
-                <span className="text-xs text-gray-500">{b.token}</span>
+                <DollarSign size={14} className="text-brand" />
+                <span className="text-xs font-medium text-text-2">{b.token}</span>
               </div>
-              <div className="text-2xl font-bold">{formatNum(b.balance)}</div>
-              <div className="text-xs text-gray-600 mt-1">≈ ${formatNum(b.usdValue)}</div>
-            </div>
-          )) : [{ token: 'TRX' }, { token: 'USDT' }, { token: 'USDD' }].map(b => (
-            <div key={b.token} className="p-4 rounded-xl bg-[#0a1220] border border-white/5 animate-pulse">
-              <div className="h-4 bg-white/5 rounded mb-3 w-16" />
-              <div className="h-8 bg-white/5 rounded w-24" />
+              <div className="text-2xl font-bold text-text-0">
+                <CountUp value={parseFloat(b.balance)} />
+              </div>
+              <div className="text-xs text-text-3 mt-1">≈ ${formatNum(b.usdValue)}</div>
+            </motion.div>
+          )) : [0, 1, 2].map(i => (
+            <div key={i} className="glass-card p-5 animate-pulse">
+              <div className="h-3 w-12 bg-white/5 rounded mb-4" />
+              <div className="h-6 w-24 bg-white/5 rounded" />
             </div>
           ))}
         </div>
 
-        {/* Agent Activity Feed — MAIN FEATURE */}
-        <div className="p-4 rounded-xl bg-[#0a1220] border border-green-400/10">
+        {/* Agent Activity Feed */}
+        <div className="glass-card p-5 glow-border">
           <div className="flex items-center gap-2 mb-4">
-            <Bot size={14} className="text-green-400" />
-            <span className="text-sm font-medium text-green-400">Agent Activity Feed</span>
-            <span className="ml-auto text-xs text-gray-600">{agentCalls.length} calls</span>
+            <Zap size={14} className="text-brand" />
+            <span className="text-sm font-semibold text-text-0">Agent Activity Feed</span>
+            <span className="ml-auto badge badge-orange !text-[10px]">{agentCalls.length} calls</span>
           </div>
-          <div className="space-y-2 max-h-72 overflow-y-auto">
-            {agentCalls.length === 0 ? (
-              <div className="text-center py-8 text-gray-600 text-sm">
-                <Bot size={32} className="mx-auto mb-3 opacity-20" />
-                <p>Waiting for agent connections...</p>
-                <p className="text-xs mt-1">Connect an agent via MCP or Skills to see activity here</p>
-              </div>
-            ) : agentCalls.map((call, i) => (
-              <div key={`${call.timestamp}-${i}`}
-                className="flex items-center gap-3 py-2 px-3 rounded-lg bg-[#070d1a] border border-white/5 text-xs">
-                <span className="text-lg flex-shrink-0">{toolIcon(call.tool)}</span>
-                <div className="flex-1 min-w-0">
-                  <div className={`font-mono font-medium ${toolColor(call.tool)}`}>{call.tool}</div>
-                  <div className="text-gray-600 truncate">
-                    {call.method} {call.path}
+          <div className="space-y-2 max-h-64 overflow-y-auto">
+            <AnimatePresence mode="popLayout">
+              {agentCalls.length === 0 ? (
+                <motion.div layout className="text-center py-10">
+                  <Bot size={36} className="mx-auto mb-3 text-text-3 opacity-30" />
+                  <p className="text-sm text-text-3">Waiting for agent connections...</p>
+                  <p className="text-xs text-text-3 mt-1">Run demo-agent or connect via MCP / Skills</p>
+                </motion.div>
+              ) : agentCalls.map((call, i) => (
+                <motion.div
+                  key={`${call.timestamp}-${i}`}
+                  layout
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, height: 0 }}
+                  transition={{ duration: 0.3 }}
+                  className="flex items-center gap-3 py-2.5 px-3 rounded-xl bg-bg-3/50 border border-white/[0.04] text-xs"
+                >
+                  <span className="text-base flex-shrink-0">{toolIcon(call.tool)}</span>
+                  <div className="flex-1 min-w-0">
+                    <div className={`font-mono font-medium ${toolColor(call.tool)}`}>{call.tool}</div>
+                    <div className="text-text-3 truncate text-[10px]">{call.method} {call.path}</div>
                   </div>
-                </div>
-                <div className="flex items-center gap-2 flex-shrink-0">
-                  <span className="text-gray-600">{call.duration}ms</span>
-                  <span className={call.success ? 'text-green-400' : 'text-red-400'}>
-                    {call.success ? '✓' : '✗'}
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <span className="text-text-3">{call.duration}ms</span>
+                    <span className={`w-1.5 h-1.5 rounded-full ${call.success ? 'bg-accent' : 'bg-red-400'}`} />
+                  </div>
+                </motion.div>
+              ))}
+            </AnimatePresence>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          {/* DeFi APY Chart */}
+          <div className="glass-card p-5">
+            <div className="flex items-center gap-2 mb-4">
+              <TrendingUp size={14} className="text-blue-400" />
+              <span className="text-sm font-semibold text-text-0">DeFi APY (%)</span>
+            </div>
+            <ResponsiveContainer width="100%" height={140}>
+              <BarChart data={apyData} barSize={20}>
+                <XAxis dataKey="name" tick={{ fill: '#52525b', fontSize: 10 }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fill: '#52525b', fontSize: 10 }} axisLine={false} tickLine={false} />
+                <Tooltip
+                  contentStyle={{ background: '#141419', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 12, fontSize: 12 }}
+                  labelStyle={{ color: '#a1a1aa' }}
+                  itemStyle={{ color: '#f97316' }}
+                />
+                <Bar dataKey="apy" fill="url(#apyGradient)" radius={[6, 6, 0, 0]} />
+                <defs>
+                  <linearGradient id="apyGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#f97316" />
+                    <stop offset="100%" stopColor="#f97316" stopOpacity={0.3} />
+                  </linearGradient>
+                </defs>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+
+          {/* Top Pools */}
+          <div className="glass-card p-5">
+            <div className="flex items-center gap-2 mb-4">
+              <Activity size={14} className="text-purple-400" />
+              <span className="text-sm font-semibold text-text-0">Top Pools</span>
+            </div>
+            <div className="space-y-2">
+              {pools.map(pool => (
+                <div key={pool.name} className="flex items-center gap-3 py-1.5 text-xs">
+                  <div className="flex-1 min-w-0">
+                    <div className="font-medium text-text-1 truncate">{pool.name}</div>
+                    <div className="text-text-3 capitalize">{pool.protocol}</div>
+                  </div>
+                  <div className="text-right flex-shrink-0">
+                    <div className="text-brand font-bold">{pool.apy}%</div>
+                    <div className="text-text-3">${formatNum(pool.tvl)}</div>
+                  </div>
+                  <span className={`badge !text-[9px] !py-0 !px-1.5
+                    ${pool.riskLevel === 'low' ? 'badge-green' : pool.riskLevel === 'medium' ? 'badge-orange' : 'badge-red'}`}>
+                    {pool.riskLevel}
                   </span>
                 </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* DeFi APY Chart */}
-        <div className="p-4 rounded-xl bg-[#0a1220] border border-white/5">
-          <div className="flex items-center gap-2 mb-4">
-            <TrendingUp size={14} className="text-blue-400" />
-            <span className="text-sm font-medium">DeFi APY (%)</span>
-          </div>
-          <ResponsiveContainer width="100%" height={130}>
-            <BarChart data={apyChartData} barSize={18}>
-              <XAxis dataKey="name" tick={{ fill: '#6b7280', fontSize: 10 }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fill: '#6b7280', fontSize: 10 }} axisLine={false} tickLine={false} />
-              <Tooltip contentStyle={{ background: '#0a1220', border: '1px solid rgba(255,255,255,0.05)', borderRadius: 8 }}
-                labelStyle={{ color: '#9ca3af' }} itemStyle={{ color: '#4ade80' }} />
-              <Bar dataKey="apy" fill="#4ade80" radius={[4, 4, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-
-        {/* DeFi pools */}
-        <div className="p-4 rounded-xl bg-[#0a1220] border border-white/5">
-          <div className="flex items-center gap-2 mb-4">
-            <Activity size={14} className="text-blue-400" />
-            <span className="text-sm font-medium">Top DeFi Pools</span>
-          </div>
-          <div className="space-y-2">
-            {pools.map(pool => (
-              <div key={pool.name} className="flex items-center gap-4 py-2 border-b border-white/5 last:border-0 text-sm">
-                <div className="flex-1">
-                  <div className="font-medium">{pool.name}</div>
-                  <div className="text-xs text-gray-600 capitalize">{pool.protocol}</div>
-                </div>
-                <div className="text-right">
-                  <div className="text-green-400 font-bold">{pool.apy}%</div>
-                  <div className="text-xs text-gray-600">${formatNum(pool.tvl)} TVL</div>
-                </div>
-                <span className={`text-xs px-2 py-0.5 rounded-full
-                  ${pool.riskLevel === 'low' ? 'bg-green-400/10 text-green-400' :
-                    pool.riskLevel === 'medium' ? 'bg-yellow-400/10 text-yellow-400' :
-                    'bg-red-400/10 text-red-400'}`}>
-                  {pool.riskLevel}
-                </span>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         </div>
       </div>
