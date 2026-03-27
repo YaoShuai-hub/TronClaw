@@ -1,45 +1,89 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" fill="none">
   <defs>
-    <linearGradient id="claw-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#FF060A"/>
-      <stop offset="50%" stop-color="#FF4D4D"/>
-      <stop offset="100%" stop-color="#4ADE80"/>
+    <linearGradient id="body-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#E8382B"/>
+      <stop offset="100%" stop-color="#C62828"/>
     </linearGradient>
-    <linearGradient id="body-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#1a1a2e"/>
-      <stop offset="100%" stop-color="#16213e"/>
+    <linearGradient id="claw-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FF5722"/>
+      <stop offset="100%" stop-color="#D32F2F"/>
     </linearGradient>
+    <linearGradient id="belly-grad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#FFCCBC"/>
+      <stop offset="100%" stop-color="#FFAB91"/>
+    </linearGradient>
+    <linearGradient id="big-claw-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FF7043"/>
+      <stop offset="50%" stop-color="#F44336"/>
+      <stop offset="100%" stop-color="#D32F2F"/>
+    </linearGradient>
+    <filter id="shadow">
+      <feDropShadow dx="0" dy="2" stdDeviation="2" flood-color="#000" flood-opacity="0.15"/>
+    </filter>
     <filter id="glow">
-      <feGaussianBlur stdDeviation="2" result="blur"/>
+      <feGaussianBlur stdDeviation="2.5" result="blur"/>
       <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
     </filter>
   </defs>
-  <!-- Body -->
-  <ellipse cx="55" cy="68" rx="30" ry="24" fill="url(#body-gradient)" stroke="url(#claw-gradient)" stroke-width="2"/>
-  <!-- Eyes -->
-  <circle cx="45" cy="52" r="5" fill="#0ff" opacity="0.9"/>
-  <circle cx="65" cy="52" r="5" fill="#0ff" opacity="0.9"/>
-  <circle cx="46" cy="51" r="2" fill="#fff"/>
-  <circle cx="66" cy="51" r="2" fill="#fff"/>
+
+  <!-- Body (oval, Mr. Krabs red) -->
+  <ellipse cx="56" cy="65" rx="28" ry="24" fill="url(#body-grad)" filter="url(#shadow)"/>
+
+  <!-- Belly (lighter patch) -->
+  <ellipse cx="56" cy="70" rx="16" ry="13" fill="url(#belly-grad)" opacity="0.7"/>
+
+  <!-- Blockchain nodes on belly -->
+  <circle cx="48" cy="68" r="2" fill="#4ADE80" opacity="0.8"/>
+  <circle cx="56" cy="63" r="2" fill="#4ADE80" opacity="0.8"/>
+  <circle cx="64" cy="68" r="2" fill="#4ADE80" opacity="0.8"/>
+  <line x1="48" y1="68" x2="56" y2="63" stroke="#4ADE80" stroke-width="0.8" opacity="0.5"/>
+  <line x1="56" y1="63" x2="64" y2="68" stroke="#4ADE80" stroke-width="0.8" opacity="0.5"/>
+  <line x1="48" y1="68" x2="64" y2="68" stroke="#4ADE80" stroke-width="0.8" opacity="0.5"/>
+
   <!-- Eye stalks -->
-  <line x1="45" y1="56" x2="45" y2="62" stroke="#4ADE80" stroke-width="2"/>
-  <line x1="65" y1="56" x2="65" y2="62" stroke="#4ADE80" stroke-width="2"/>
-  <!-- Left small claw -->
-  <path d="M25 60 Q15 50 20 40 Q25 35 28 42 Q30 48 25 55Z" fill="url(#claw-gradient)" opacity="0.7" filter="url(#glow)"/>
-  <!-- RIGHT BIG CLAW (signature element) -->
-  <path d="M85 55 Q105 35 110 25 Q112 20 108 22 Q100 28 95 40 L92 38 Q108 18 112 10 Q114 5 110 8 Q98 20 88 42 Q86 46 85 50Z" fill="url(#claw-gradient)" filter="url(#glow)"/>
-  <!-- Claw grip lines -->
-  <path d="M88 48 Q95 42 92 38" stroke="#fff" stroke-width="1" fill="none" opacity="0.5"/>
-  <!-- Legs -->
-  <line x1="35" y1="85" x2="28" y2="98" stroke="url(#claw-gradient)" stroke-width="2" stroke-linecap="round"/>
-  <line x1="45" y1="88" x2="40" y2="100" stroke="url(#claw-gradient)" stroke-width="2" stroke-linecap="round"/>
-  <line x1="65" y1="88" x2="70" y2="100" stroke="url(#claw-gradient)" stroke-width="2" stroke-linecap="round"/>
-  <line x1="75" y1="85" x2="82" y2="98" stroke="url(#claw-gradient)" stroke-width="2" stroke-linecap="round"/>
-  <!-- Blockchain nodes on body -->
-  <circle cx="45" cy="72" r="2.5" fill="#4ADE80" opacity="0.6"/>
-  <circle cx="55" cy="65" r="2.5" fill="#4ADE80" opacity="0.6"/>
-  <circle cx="65" cy="72" r="2.5" fill="#4ADE80" opacity="0.6"/>
-  <line x1="45" y1="72" x2="55" y2="65" stroke="#4ADE80" stroke-width="0.8" opacity="0.4"/>
-  <line x1="55" y1="65" x2="65" y2="72" stroke="#4ADE80" stroke-width="0.8" opacity="0.4"/>
-  <line x1="45" y1="72" x2="65" y2="72" stroke="#4ADE80" stroke-width="0.8" opacity="0.4"/>
+  <rect x="44" y="38" width="4" height="14" rx="2" fill="#E8382B"/>
+  <rect x="62" y="38" width="4" height="14" rx="2" fill="#E8382B"/>
+
+  <!-- Eyes (white with pupils, Mr. Krabs style) -->
+  <circle cx="46" cy="35" r="8" fill="#FFFDE7"/>
+  <circle cx="64" cy="35" r="8" fill="#FFFDE7"/>
+  <circle cx="46" cy="35" r="7" fill="#FFF" stroke="#E0E0E0" stroke-width="0.5"/>
+  <circle cx="64" cy="35" r="7" fill="#FFF" stroke="#E0E0E0" stroke-width="0.5"/>
+  <!-- Pupils -->
+  <circle cx="48" cy="34" r="3.5" fill="#1A237E"/>
+  <circle cx="66" cy="34" r="3.5" fill="#1A237E"/>
+  <!-- Eye highlights -->
+  <circle cx="49.5" cy="32.5" r="1.2" fill="#FFF"/>
+  <circle cx="67.5" cy="32.5" r="1.2" fill="#FFF"/>
+
+  <!-- Smile -->
+  <path d="M43 73 Q56 82 69 73" stroke="#B71C1C" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+
+  <!-- Left small claw / arm -->
+  <path d="M28 58 Q18 52 14 44 Q12 39 16 41 Q20 44 22 50" stroke="url(#claw-grad)" stroke-width="4" fill="none" stroke-linecap="round"/>
+  <!-- Left pincer -->
+  <ellipse cx="13" cy="41" rx="6" ry="4" fill="url(#claw-grad)" transform="rotate(-20 13 41)"/>
+  <path d="M9 39 Q13 36 17 39" stroke="#B71C1C" stroke-width="1" fill="none"/>
+
+  <!-- RIGHT BIG CLAW (signature! bigger, more dramatic) -->
+  <path d="M84 55 Q92 48 96 40" stroke="url(#big-claw-grad)" stroke-width="5" fill="none" stroke-linecap="round"/>
+  <!-- Big pincer top -->
+  <path d="M94 28 Q102 22 108 26 Q112 30 106 33 Q100 35 96 40Z" fill="url(#big-claw-grad)" filter="url(#glow)"/>
+  <!-- Big pincer bottom -->
+  <path d="M96 40 Q100 42 104 40 Q108 38 106 33" fill="url(#big-claw-grad)"/>
+  <!-- Pincer gap line -->
+  <path d="M96 40 Q101 36 106 33" stroke="#FFCCBC" stroke-width="1" fill="none"/>
+  <!-- Claw inner highlight -->
+  <path d="M98 30 Q103 26 106 28" stroke="#FFAB91" stroke-width="0.8" fill="none" opacity="0.6"/>
+
+  <!-- Legs (4 pairs, cute and stubby) -->
+  <line x1="38" y1="84" x2="30" y2="96" stroke="#D32F2F" stroke-width="3" stroke-linecap="round"/>
+  <line x1="48" y1="87" x2="42" y2="99" stroke="#D32F2F" stroke-width="3" stroke-linecap="round"/>
+  <line x1="64" y1="87" x2="70" y2="99" stroke="#D32F2F" stroke-width="3" stroke-linecap="round"/>
+  <line x1="74" y1="84" x2="82" y2="96" stroke="#D32F2F" stroke-width="3" stroke-linecap="round"/>
+  <!-- Leg tips (little feet) -->
+  <circle cx="29" cy="97" r="2.5" fill="#FF7043"/>
+  <circle cx="41" cy="100" r="2.5" fill="#FF7043"/>
+  <circle cx="71" cy="100" r="2.5" fill="#FF7043"/>
+  <circle cx="83" cy="97" r="2.5" fill="#FF7043"/>
 </svg>
