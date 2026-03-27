@@ -164,7 +164,11 @@ const messageHandler: RequestHandler = async (req, res) => {
     }
 
     const result = provider === 'gemini' && hasGemini
-      ? await runGemini(message, history, walletAddress)
+      ? await runGemini(message, history, walletAddress).catch((e: Error) => {
+          // Fallback if region blocked or quota exceeded
+          console.warn('[Chat] Gemini error, falling back to demo mode:', e.message)
+          return { response: `[Gemini 暂不可用: ${e.message.slice(0, 80)}]\n\n请直接使用 demo-agent.mjs 或配置代理。TronClaw 工具调用功能正常。`, toolCalls: [] }
+        })
       : provider === 'anthropic' && hasAnthropic
         ? await runAnthropic(message, history, walletAddress)
         : { response: '[Demo Mode] No LLM provider configured.', toolCalls: [] }

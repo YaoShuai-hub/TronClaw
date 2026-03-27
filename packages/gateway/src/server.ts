@@ -8,18 +8,67 @@ import { defiRouter } from './api/defi.js'
 import { automationRouter } from './api/automation.js'
 import { identityRouter } from './api/identity.js'
 import { chatRouter } from './api/chat.js'
-import { setupWebSocket } from './ws/index.js'
+import { setupWebSocket, broadcast } from './ws/index.js'
 import type { ApiResponse } from '@tronclaw/shared'
+
+// ─── API Activity Interceptor (broadcasts all /api/v1/* calls to Dashboard) ──
+
+function apiActivityMiddleware(
+  req: express.Request,
+  res: express.Response,
+  next: express.NextFunction,
+) {
+  // Skip health + chat (too noisy)
+  if (!req.path.startsWith('/api/v1/') || req.path.startsWith('/api/v1/chat')) {
+    return next()
+  }
+
+  const start = Date.now()
+  const originalJson = res.json.bind(res)
+
+  res.json = (body: unknown) => {
+    const duration = Date.now() - start
+    const apiBody = body as ApiResponse
+
+    // Derive tool name from path: /api/v1/payment/balance → tron_payment_balance
+    const parts = req.path.replace('/api/v1/', '').replace(/^\//, '').split('/').filter(Boolean)
+    const tool = `tron_${parts.join('_').replace(/-/g, '_')}`
+
+    // Broadcast to all WebSocket clients
+    broadcast('agent_tool_call', {
+      tool,
+      method: req.method,
+      path: req.path,
+      input: req.method === 'GET' ? req.query : req.body,
+      result: apiBody?.data,
+      success: apiBody?.success ?? true,
+      duration,
+      timestamp: Date.now(),
+    })
+
+    return originalJson(body)
+  }
+
+  next()
+}
 
 export function createServer() {
   const app = express()
 
   // ─── Middleware ───────────────────────────────────────────────────────────
   app.use(cors({
-    origin: process.env.FRONTEND_URL ?? 'http://localhost:5173',
+    origin: (origin, callback) => {
+      // Allow: no origin (curl/MCP), localhost, or any IP:5173
+      if (!origin || origin.includes('localhost') || origin.includes(':5173') || origin.includes(':3000')) {
+        callback(null, true)
+      } else {
+        callback(null, true) // Allow all for hackathon demo
+      }
+    },
     credentials: true,
   }))
   app.use(express.json())
+  app.use(apiActivityMiddleware)
 
   // ─── Health check ─────────────────────────────────────────────────────────
   app.get('/health', (_req, res) => {

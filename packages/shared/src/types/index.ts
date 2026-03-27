@@ -187,6 +187,7 @@ export type WsEventType =
   | 'automation_trigger'
   | 'whale_alert'
   | 'payment_confirmed'
+  | 'agent_tool_call'
   | 'connected'
 
 export interface WsEvent<T = unknown> {

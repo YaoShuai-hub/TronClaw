@@ -81,6 +81,7 @@ export default function Chat() {
       const history = messages.map(m => ({ role: m.role, content: m.content }))
       const { data } = await axios.post('/api/v1/chat/message', {
         message: text,
+        walletAddress: 'TFp3Ls4mHdzysbX1qxbwXdMzS8mkvhCMx6',
         history,
       })
 
@@ -92,11 +93,13 @@ export default function Chat() {
         timestamp: Date.now(),
       }
       setMessages(prev => [...prev, assistantMsg])
-    } catch {
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e)
+      console.error('[Chat] Error:', e)
       setMessages(prev => [...prev, {
         id: (Date.now() + 1).toString(),
-        role: 'assistant',
-        content: '❌ 请求失败，请检查 Gateway 是否运行正常。',
+        role: 'assistant' as const,
+        content: `❌ 请求失败: ${msg}`,
         timestamp: Date.now(),
       }])
     } finally {
