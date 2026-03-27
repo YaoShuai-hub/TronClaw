@@ -62,7 +62,40 @@ export async function swapTokens(
   throw new Error('Real swap not yet implemented — enable MOCK_TRON=true for demo')
 }
 
-// ─── Supply to JustLend ───────────────────────────────────────────────────────
+// ─── DeFi Overview ───────────────────────────────────────────────────────────
+
+export async function getDefiOverview() {
+  const pools = await getDefiYields('all')
+  const totalTVL = pools.reduce((s, p) => s + parseFloat(p.tvl), 0)
+  const avgAPY = pools.length ? (pools.reduce((s, p) => s + parseFloat(p.apy), 0) / pools.length) : 0
+  const bestPool = pools.sort((a, b) => parseFloat(b.apy) - parseFloat(a.apy))[0]
+  return {
+    totalTVL: totalTVL.toFixed(0),
+    totalTVLFormatted: `$${(totalTVL / 1e6).toFixed(1)}M`,
+    avgAPY: avgAPY.toFixed(1),
+    protocolCount: new Set(pools.map(p => p.protocol)).size,
+    poolCount: pools.length,
+    bestPool: bestPool ? { name: bestPool.name, apy: bestPool.apy, protocol: bestPool.protocol } : null,
+  }
+}
+
+// ─── Portfolio ────────────────────────────────────────────────────────────────
+
+export async function getPortfolio(address: string) {
+  // In production: query user's positions in JustLend/SunSwap via contract calls
+  // For demo: return mock portfolio based on address
+  const pools = await getDefiYields('all')
+  const mockPositions = isMockMode() ? [
+    { pool: pools[0].name, protocol: pools[0].protocol, deposited: '500', token: 'USDT', currentAPY: pools[0].apy, earnings: '12.50' },
+    { pool: pools[3].name, protocol: pools[3].protocol, deposited: '1000', token: 'TRX', currentAPY: pools[3].apy, earnings: '8.20' },
+  ] : []
+  return {
+    address,
+    positions: mockPositions,
+    totalDeposited: mockPositions.reduce((s, p) => s + parseFloat(p.deposited), 0).toFixed(2),
+    totalEarnings: mockPositions.reduce((s, p) => s + parseFloat(p.earnings), 0).toFixed(2),
+  }
+}
 
 export async function lendSupply(
   token: string,

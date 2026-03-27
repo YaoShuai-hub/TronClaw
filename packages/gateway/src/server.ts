@@ -8,6 +8,7 @@ import { defiRouter } from './api/defi.js'
 import { automationRouter } from './api/automation.js'
 import { identityRouter } from './api/identity.js'
 import { chatRouter } from './api/chat.js'
+import { marketRouter } from './api/market.js'
 import { setupWebSocket, broadcast } from './ws/index.js'
 import type { ApiResponse } from '@tronclaw/shared'
 
@@ -91,6 +92,7 @@ export function createServer() {
   app.use('/api/v1/automation', automationRouter)
   app.use('/api/v1/identity', identityRouter)
   app.use('/api/v1/chat', chatRouter)
+  app.use('/api/v1/market', marketRouter)
 
   // ─── Error handler ────────────────────────────────────────────────────────
   app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {

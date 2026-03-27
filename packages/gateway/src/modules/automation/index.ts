@@ -114,7 +114,72 @@ export function cancelTask(taskId: string): boolean {
   return result.changes > 0
 }
 
-// ─── Price Monitor (simple polling loop) ─────────────────────────────────────
+// ─── Scheduled Transfer ───────────────────────────────────────────────────────
+
+export async function createScheduledTransfer(
+  to: string,
+  amount: string,
+  token: string,
+  schedule: string, // 'daily' | 'weekly' | 'monthly'
+): Promise<AutomationTask> {
+  return createAutomationTask(
+    'scheduled_transfer',
+    { to, schedule, nextRun: Date.now() + 86400000 },
+    [{ type: 'send_payment', params: { to, amount, token } }],
+  )
+}
+
+// ─── Whale Follow ─────────────────────────────────────────────────────────────
+
+export async function createWhaleFollow(
+  minAmount: string,
+  token: string,
+  followAction: 'copy' | 'alert',
+): Promise<AutomationTask> {
+  return createAutomationTask(
+    'whale_alert',
+    { minAmount, token, followAction },
+    [{ type: 'notify', params: { message: `Whale detected: ${minAmount}+ ${token}` } }],
+  )
+}
+
+// ─── Pause / Resume Task ──────────────────────────────────────────────────────
+
+export function pauseTask(taskId: string): boolean {
+  const db = getDb()
+  const result = db.prepare("UPDATE automation_tasks SET status = 'paused' WHERE task_id = ? AND status = 'active'").run(taskId)
+  return result.changes > 0
+}
+
+export function resumeTask(taskId: string): boolean {
+  const db = getDb()
+  const result = db.prepare("UPDATE automation_tasks SET status = 'active' WHERE task_id = ? AND status = 'paused'").run(taskId)
+  return result.changes > 0
+}
+
+// ─── Task History ─────────────────────────────────────────────────────────────
+
+export function getTaskHistory(taskId: string) {
+  // In production, track per-trigger history in a separate table
+  // For demo, return mock history
+  return [
+    { timestamp: Date.now() - 3600000, event: 'triggered', success: true, txHash: `mock_auto_${Date.now().toString(16)}` },
+    { timestamp: Date.now() - 7200000, event: 'triggered', success: true, txHash: `mock_auto_${(Date.now() - 1).toString(16)}` },
+  ]
+}
+
+// ─── Global Stats ─────────────────────────────────────────────────────────────
+
+export function getAutoStats() {
+  const db = getDb()
+  const rows = db.prepare('SELECT status, COUNT(*) as c, SUM(trigger_count) as t FROM automation_tasks GROUP BY status').all() as Array<{ status: string; c: number; t: number }>
+  const stats = { active: 0, paused: 0, completed: 0, cancelled: 0, totalTriggers: 0 }
+  for (const r of rows) {
+    if (r.status in stats) (stats as Record<string, number>)[r.status] = r.c
+    stats.totalTriggers += r.t ?? 0
+  }
+  return stats
+}
 
 let monitorInterval: ReturnType<typeof setInterval> | null = null
 

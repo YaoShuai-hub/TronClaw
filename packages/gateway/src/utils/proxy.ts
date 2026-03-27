@@ -10,25 +10,24 @@ export async function setupProxy(): Promise<void> {
   if (!proxyUrl || proxyPatched) return
 
   try {
-    // Use undici ProxyAgent for Node.js fetch
-    const { ProxyAgent, setGlobalDispatcher } = await import('undici')
-    setGlobalDispatcher(new ProxyAgent(proxyUrl))
-    proxyPatched = true
-    console.log(`[Proxy] Global fetch proxy set → ${proxyUrl}`)
-  } catch {
-    console.warn('[Proxy] undici not available, trying https-proxy-agent...')
-    try {
-      // Fallback: set global agent for http/https modules
-      const { HttpsProxyAgent } = await import('https-proxy-agent')
-      const agent = new HttpsProxyAgent(proxyUrl)
-      // @ts-expect-error global agent override
-      globalThis[Symbol.for('undici.globalDispatcher.1')] = undefined
-      const https = await import('https')
-      https.globalAgent = agent as unknown as typeof https.globalAgent
-      proxyPatched = true
-      console.log(`[Proxy] https-proxy-agent set → ${proxyUrl}`)
-    } catch {
-      console.warn('[Proxy] No proxy agent available. Install undici or https-proxy-agent for proxy support.')
+    const https = await import('https')
+    // Dynamic import with string variable to bypass TS module resolution
+    const agentPkg = 'https-proxy-agent'
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const mod = await import(/* @vite-ignore */ agentPkg).catch(() => null) as any
+    if (mod) {
+      const Cls = mod.HttpsProxyAgent ?? mod.default?.HttpsProxyAgent
+      if (Cls) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        ;(https as any).globalAgent = new Cls(proxyUrl)
+        proxyPatched = true
+        console.log(`[Proxy] https-proxy-agent set → ${proxyUrl}`)
+        return
+      }
     }
+    console.warn('[Proxy] https-proxy-agent not found. Set HTTPS_PROXY but no agent library available.')
+    console.warn('[Proxy] Install with: pnpm --filter @tronclaw/gateway add https-proxy-agent')
+  } catch (e) {
+    console.warn('[Proxy] Failed to set proxy:', (e as Error).message)
   }
 }
