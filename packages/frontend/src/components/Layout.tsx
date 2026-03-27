@@ -1,16 +1,18 @@
 import { Outlet, NavLink, useLocation } from 'react-router-dom'
 import { MessageSquare, LayoutDashboard, Bot, Search, ExternalLink } from 'lucide-react'
 import WalletButton, { LangToggle } from './WalletButton.tsx'
-
-const NAV = [
-  { to: '/chat', icon: MessageSquare, label: 'Chat' },
-  { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-  { to: '/agents', icon: Bot, label: 'Agents' },
-  { to: '/explorer', icon: Search, label: 'Explorer' },
-]
+import { useLang } from '../stores/lang.ts'
 
 export default function Layout() {
   const location = useLocation()
+  const { t } = useLang()
+
+  const NAV = [
+    { to: '/chat', icon: MessageSquare, label: t('chat') },
+    { to: '/dashboard', icon: LayoutDashboard, label: t('dashboard') },
+    { to: '/agents', icon: Bot, label: t('agents') },
+    { to: '/explorer', icon: Search, label: t('explorer') },
+  ]
 
   return (
     <div className="flex h-screen bg-bg-0">
@@ -44,18 +46,18 @@ export default function Layout() {
         <div className="p-3 border-t border-white/[0.06]">
           <div className="hidden lg:flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-accent animate-pulse" />
-            <span className="text-[11px] text-text-3">Nile Testnet</span>
+            <span className="text-[11px] text-text-3">{t('nileTestnet')}</span>
           </div>
           <a href="https://nile.tronscan.org" target="_blank" rel="noopener"
             className="hidden lg:flex items-center gap-1 mt-1.5 text-[10px] text-text-3 hover:text-brand transition-colors">
-            TronScan <ExternalLink size={9} />
+            {t('tronScan')} <ExternalLink size={9} />
           </a>
         </div>
       </aside>
 
       {/* Right section */}
       <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Top bar: wallet + lang toggle (right-aligned) */}
+        {/* Top bar */}
         <header className="h-14 flex items-center justify-end gap-3 px-5 border-b border-white/[0.06] bg-bg-1/50 backdrop-blur-sm flex-shrink-0">
           <LangToggle />
           <WalletButton />
