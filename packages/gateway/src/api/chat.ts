@@ -55,7 +55,7 @@ async function runGemini(
   const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!)
 
   const model = genAI.getGenerativeModel({
-    model: 'gemini-2.0-flash',
+    model: 'gemini-3.1-flash-lite-preview',
     systemInstruction: `You are TronClaw AI Agent with full TRON blockchain capabilities.
 ${walletAddress ? `User wallet: ${walletAddress}` : ''}
 Network: ${process.env.TRON_NETWORK ?? 'nile'} | Mock: ${process.env.MOCK_TRON === 'true' ? 'ON' : 'OFF'}
