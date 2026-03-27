@@ -1,7 +1,7 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" fill="none">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 130 120" fill="none">
   <defs>
     <linearGradient id="body-grad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#E8382B"/>
+      <stop offset="0%" stop-color="#EF5350"/>
       <stop offset="100%" stop-color="#C62828"/>
     </linearGradient>
     <linearGradient id="claw-grad" x1="0%" y1="0%" x2="100%" y2="100%">
@@ -12,78 +12,111 @@
       <stop offset="0%" stop-color="#FFCCBC"/>
       <stop offset="100%" stop-color="#FFAB91"/>
     </linearGradient>
-    <linearGradient id="big-claw-grad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#FF7043"/>
-      <stop offset="50%" stop-color="#F44336"/>
-      <stop offset="100%" stop-color="#D32F2F"/>
+    <linearGradient id="big-claw" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FF8A65"/>
+      <stop offset="40%" stop-color="#FF5722"/>
+      <stop offset="100%" stop-color="#E53935"/>
     </linearGradient>
     <filter id="shadow">
-      <feDropShadow dx="0" dy="2" stdDeviation="2" flood-color="#000" flood-opacity="0.15"/>
+      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#000" flood-opacity="0.18"/>
     </filter>
-    <filter id="glow">
-      <feGaussianBlur stdDeviation="2.5" result="blur"/>
+    <filter id="glow-big">
+      <feGaussianBlur stdDeviation="3" result="blur"/>
       <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
     </filter>
   </defs>
 
-  <!-- Body (oval, Mr. Krabs red) -->
-  <ellipse cx="56" cy="65" rx="28" ry="24" fill="url(#body-grad)" filter="url(#shadow)"/>
+  <!-- Body -->
+  <ellipse cx="50" cy="68" rx="28" ry="24" fill="url(#body-grad)" filter="url(#shadow)"/>
 
-  <!-- Belly (lighter patch) -->
-  <ellipse cx="56" cy="70" rx="16" ry="13" fill="url(#belly-grad)" opacity="0.7"/>
+  <!-- Belly -->
+  <ellipse cx="50" cy="72" rx="17" ry="14" fill="url(#belly-grad)" opacity="0.65"/>
 
-  <!-- Blockchain nodes on belly -->
-  <circle cx="48" cy="68" r="2" fill="#4ADE80" opacity="0.8"/>
-  <circle cx="56" cy="63" r="2" fill="#4ADE80" opacity="0.8"/>
-  <circle cx="64" cy="68" r="2" fill="#4ADE80" opacity="0.8"/>
-  <line x1="48" y1="68" x2="56" y2="63" stroke="#4ADE80" stroke-width="0.8" opacity="0.5"/>
-  <line x1="56" y1="63" x2="64" y2="68" stroke="#4ADE80" stroke-width="0.8" opacity="0.5"/>
-  <line x1="48" y1="68" x2="64" y2="68" stroke="#4ADE80" stroke-width="0.8" opacity="0.5"/>
+  <!-- ★ TRON logo shape made of blockchain nodes (on belly, no mouth) ★ -->
+  <!-- TRON logo is a triangle/diamond: top point + two bottom corners -->
+  <circle cx="50" cy="62" r="2.5" fill="#4ADE80" opacity="0.9"/>  <!-- top -->
+  <circle cx="40" cy="76" r="2.5" fill="#4ADE80" opacity="0.9"/>  <!-- bottom-left -->
+  <circle cx="60" cy="76" r="2.5" fill="#4ADE80" opacity="0.9"/>  <!-- bottom-right -->
+  <circle cx="50" cy="72" r="2" fill="#4ADE80" opacity="0.7"/>    <!-- center -->
+  <circle cx="44" cy="68" r="1.8" fill="#4ADE80" opacity="0.6"/>  <!-- mid-left -->
+  <circle cx="56" cy="68" r="1.8" fill="#4ADE80" opacity="0.6"/>  <!-- mid-right -->
+  <!-- Connections forming TRON triangle shape -->
+  <line x1="50" y1="62" x2="40" y2="76" stroke="#4ADE80" stroke-width="1" opacity="0.5"/>
+  <line x1="50" y1="62" x2="60" y2="76" stroke="#4ADE80" stroke-width="1" opacity="0.5"/>
+  <line x1="40" y1="76" x2="60" y2="76" stroke="#4ADE80" stroke-width="1" opacity="0.5"/>
+  <!-- Inner connections -->
+  <line x1="50" y1="62" x2="50" y2="72" stroke="#4ADE80" stroke-width="0.8" opacity="0.4"/>
+  <line x1="50" y1="72" x2="40" y2="76" stroke="#4ADE80" stroke-width="0.8" opacity="0.4"/>
+  <line x1="50" y1="72" x2="60" y2="76" stroke="#4ADE80" stroke-width="0.8" opacity="0.4"/>
+  <line x1="44" y1="68" x2="56" y2="68" stroke="#4ADE80" stroke-width="0.8" opacity="0.35"/>
+  <line x1="44" y1="68" x2="50" y2="72" stroke="#4ADE80" stroke-width="0.6" opacity="0.3"/>
+  <line x1="56" y1="68" x2="50" y2="72" stroke="#4ADE80" stroke-width="0.6" opacity="0.3"/>
 
   <!-- Eye stalks -->
-  <rect x="44" y="38" width="4" height="14" rx="2" fill="#E8382B"/>
-  <rect x="62" y="38" width="4" height="14" rx="2" fill="#E8382B"/>
+  <rect x="39" y="40" width="4.5" height="12" rx="2.2" fill="#E53935"/>
+  <rect x="57" y="40" width="4.5" height="12" rx="2.2" fill="#E53935"/>
 
-  <!-- Eyes (white with pupils, Mr. Krabs style) -->
-  <circle cx="46" cy="35" r="8" fill="#FFFDE7"/>
-  <circle cx="64" cy="35" r="8" fill="#FFFDE7"/>
-  <circle cx="46" cy="35" r="7" fill="#FFF" stroke="#E0E0E0" stroke-width="0.5"/>
-  <circle cx="64" cy="35" r="7" fill="#FFF" stroke="#E0E0E0" stroke-width="0.5"/>
+  <!-- Eyes -->
+  <circle cx="41" cy="35" r="9" fill="#FFFDE7" filter="url(#shadow)"/>
+  <circle cx="59" cy="35" r="9" fill="#FFFDE7" filter="url(#shadow)"/>
+  <circle cx="41" cy="35" r="8" fill="#FFF" stroke="#E8E8E8" stroke-width="0.5"/>
+  <circle cx="59" cy="35" r="8" fill="#FFF" stroke="#E8E8E8" stroke-width="0.5"/>
   <!-- Pupils -->
-  <circle cx="48" cy="34" r="3.5" fill="#1A237E"/>
-  <circle cx="66" cy="34" r="3.5" fill="#1A237E"/>
-  <!-- Eye highlights -->
-  <circle cx="49.5" cy="32.5" r="1.2" fill="#FFF"/>
-  <circle cx="67.5" cy="32.5" r="1.2" fill="#FFF"/>
+  <circle cx="43" cy="34" r="4" fill="#1A237E"/>
+  <circle cx="61" cy="34" r="4" fill="#1A237E"/>
+  <!-- Highlights -->
+  <circle cx="45" cy="32" r="1.5" fill="#FFF"/>
+  <circle cx="63" cy="32" r="1.5" fill="#FFF"/>
+  <circle cx="42" cy="36.5" r="0.8" fill="#FFF" opacity="0.5"/>
+  <circle cx="60" cy="36.5" r="0.8" fill="#FFF" opacity="0.5"/>
 
-  <!-- Smile -->
-  <path d="M43 73 Q56 82 69 73" stroke="#B71C1C" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+  <!-- Cute blush cheeks -->
+  <ellipse cx="34" cy="72" rx="5" ry="3" fill="#FF8A80" opacity="0.35"/>
+  <ellipse cx="66" cy="72" rx="5" ry="3" fill="#FF8A80" opacity="0.35"/>
 
-  <!-- Left small claw / arm -->
-  <path d="M28 58 Q18 52 14 44 Q12 39 16 41 Q20 44 22 50" stroke="url(#claw-grad)" stroke-width="4" fill="none" stroke-linecap="round"/>
-  <!-- Left pincer -->
-  <ellipse cx="13" cy="41" rx="6" ry="4" fill="url(#claw-grad)" transform="rotate(-20 13 41)"/>
-  <path d="M9 39 Q13 36 17 39" stroke="#B71C1C" stroke-width="1" fill="none"/>
+  <!-- Left small claw (clear pincer shape) -->
+  <path d="M22 60 Q16 54 12 48" stroke="url(#claw-grad)" stroke-width="4.5" fill="none" stroke-linecap="round"/>
+  <!-- Left pincer: two curved prongs -->
+  <path d="M12 48 Q6 42 4 36 Q3 33 6 35 Q10 38 12 43" fill="url(#claw-grad)"/>
+  <path d="M12 48 Q10 42 12 36 Q13 33 14 36 Q15 40 13 44" fill="url(#claw-grad)"/>
+  <!-- Pincer gap -->
+  <path d="M8 38 Q10 42 12 45" stroke="#FFCCBC" stroke-width="0.8" fill="none" opacity="0.5"/>
 
-  <!-- RIGHT BIG CLAW (signature! bigger, more dramatic) -->
-  <path d="M84 55 Q92 48 96 40" stroke="url(#big-claw-grad)" stroke-width="5" fill="none" stroke-linecap="round"/>
-  <!-- Big pincer top -->
-  <path d="M94 28 Q102 22 108 26 Q112 30 106 33 Q100 35 96 40Z" fill="url(#big-claw-grad)" filter="url(#glow)"/>
-  <!-- Big pincer bottom -->
-  <path d="M96 40 Q100 42 104 40 Q108 38 106 33" fill="url(#big-claw-grad)"/>
-  <!-- Pincer gap line -->
-  <path d="M96 40 Q101 36 106 33" stroke="#FFCCBC" stroke-width="1" fill="none"/>
-  <!-- Claw inner highlight -->
-  <path d="M98 30 Q103 26 106 28" stroke="#FFAB91" stroke-width="0.8" fill="none" opacity="0.6"/>
+  <!-- ★★★ RIGHT BIG CLAW — oversized, clear pincer shape ★★★ -->
+  <!-- Arm -->
+  <path d="M78 58 Q90 46 95 36" stroke="url(#big-claw)" stroke-width="6" fill="none" stroke-linecap="round" filter="url(#glow-big)"/>
 
-  <!-- Legs (4 pairs, cute and stubby) -->
-  <line x1="38" y1="84" x2="30" y2="96" stroke="#D32F2F" stroke-width="3" stroke-linecap="round"/>
-  <line x1="48" y1="87" x2="42" y2="99" stroke="#D32F2F" stroke-width="3" stroke-linecap="round"/>
-  <line x1="64" y1="87" x2="70" y2="99" stroke="#D32F2F" stroke-width="3" stroke-linecap="round"/>
-  <line x1="74" y1="84" x2="82" y2="96" stroke="#D32F2F" stroke-width="3" stroke-linecap="round"/>
-  <!-- Leg tips (little feet) -->
-  <circle cx="29" cy="97" r="2.5" fill="#FF7043"/>
-  <circle cx="41" cy="100" r="2.5" fill="#FF7043"/>
-  <circle cx="71" cy="100" r="2.5" fill="#FF7043"/>
-  <circle cx="83" cy="97" r="2.5" fill="#FF7043"/>
+  <!-- Top prong (upper pincer jaw) — big curved shape -->
+  <path d="M95 36 Q100 28 108 20 Q114 14 118 16 Q122 20 118 26 Q114 32 106 36 Q100 38 95 36Z"
+    fill="url(#big-claw)" filter="url(#glow-big)"/>
+  <!-- Top prong highlight -->
+  <path d="M100 22 Q108 16 116 18" stroke="#FFCCBC" stroke-width="1.5" fill="none" opacity="0.4"/>
+
+  <!-- Bottom prong (lower pincer jaw) — shorter, curves inward -->
+  <path d="M95 36 Q100 40 110 42 Q118 42 120 38 Q120 34 116 32 Q110 31 106 34 Q100 36 95 36Z"
+    fill="url(#big-claw)"/>
+  <!-- Bottom prong highlight -->
+  <path d="M100 40 Q108 42 116 40" stroke="#FFAB91" stroke-width="1" fill="none" opacity="0.4"/>
+
+  <!-- Pincer gap (the opening between the two jaws) -->
+  <path d="M106 36 Q112 33 118 30" stroke="#FFECB3" stroke-width="1.5" fill="none" opacity="0.6"/>
+  <!-- Inner teeth bumps -->
+  <circle cx="108" cy="35" r="1" fill="#FFCCBC" opacity="0.5"/>
+  <circle cx="113" cy="33.5" r="0.8" fill="#FFCCBC" opacity="0.4"/>
+  <circle cx="109" cy="38" r="0.8" fill="#FFCCBC" opacity="0.4"/>
+
+  <!-- Green energy spark on big claw tip -->
+  <circle cx="118" cy="16" r="3.5" fill="#4ADE80" opacity="0.4"/>
+  <circle cx="118" cy="16" r="1.8" fill="#4ADE80" opacity="0.9"/>
+
+  <!-- Legs -->
+  <line x1="32" y1="86" x2="24" y2="100" stroke="#D32F2F" stroke-width="3.5" stroke-linecap="round"/>
+  <line x1="42" y1="89" x2="36" y2="102" stroke="#D32F2F" stroke-width="3.5" stroke-linecap="round"/>
+  <line x1="58" y1="89" x2="64" y2="102" stroke="#D32F2F" stroke-width="3.5" stroke-linecap="round"/>
+  <line x1="68" y1="86" x2="76" y2="100" stroke="#D32F2F" stroke-width="3.5" stroke-linecap="round"/>
+  <!-- Round feet -->
+  <circle cx="23" cy="101" r="3" fill="#FF7043"/>
+  <circle cx="35" cy="103" r="3" fill="#FF7043"/>
+  <circle cx="65" cy="103" r="3" fill="#FF7043"/>
+  <circle cx="77" cy="101" r="3" fill="#FF7043"/>
 </svg>

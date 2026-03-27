@@ -1,5 +1,6 @@
 import { Outlet, NavLink, useLocation } from 'react-router-dom'
 import { MessageSquare, LayoutDashboard, Bot, Search, ExternalLink } from 'lucide-react'
+import WalletButton from './WalletButton.tsx'
 
 const NAV = [
   { to: '/chat', icon: MessageSquare, label: 'Chat' },
@@ -26,15 +27,12 @@ export default function Layout() {
           {NAV.map(({ to, icon: Icon, label }) => {
             const active = location.pathname === to
             return (
-              <NavLink
-                key={to}
-                to={to}
+              <NavLink key={to} to={to}
                 className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-medium transition-all duration-200
                   ${active
                     ? 'bg-brand/10 text-brand border border-brand/20'
                     : 'text-text-2 hover:text-text-0 hover:bg-white/[0.03] border border-transparent'
-                  }`}
-              >
+                  }`}>
                 <Icon size={17} strokeWidth={active ? 2.2 : 1.8} />
                 <span className="hidden lg:block">{label}</span>
               </NavLink>
@@ -42,24 +40,23 @@ export default function Layout() {
           })}
         </nav>
 
-        {/* Network status */}
-        <div className="p-4 border-t border-white/[0.06]">
+        {/* Wallet + Network */}
+        <div className="p-3 border-t border-white/[0.06] space-y-3">
+          <div className="hidden lg:block">
+            <WalletButton />
+          </div>
           <div className="hidden lg:flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-accent animate-pulse" />
             <span className="text-xs text-text-3">Nile Testnet</span>
           </div>
-          <a
-            href="https://nile.tronscan.org"
-            target="_blank"
-            rel="noopener"
-            className="hidden lg:flex items-center gap-1 mt-2 text-[10px] text-text-3 hover:text-brand transition-colors"
-          >
+          <a href="https://nile.tronscan.org" target="_blank" rel="noopener"
+            className="hidden lg:flex items-center gap-1 text-[10px] text-text-3 hover:text-brand transition-colors">
             TronScan <ExternalLink size={9} />
           </a>
         </div>
       </aside>
 
-      {/* Main content */}
+      {/* Main */}
       <main className="flex-1 overflow-hidden bg-bg-0">
         <Outlet />
       </main>

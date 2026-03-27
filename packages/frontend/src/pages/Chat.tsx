@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Send, Loader2, Zap, Bot, User, ExternalLink } from 'lucide-react'
 import axios from 'axios'
+import { useWallet } from '../stores/wallet.ts'
 
 interface Message {
   id: string
@@ -12,7 +13,7 @@ interface Message {
 }
 
 const TRONSCAN = 'https://nile.tronscan.org/#'
-const DEMO_ADDRESS = 'TFp3Ls4mHdzysbX1qxbwXdMzS8mkvhCMx6'
+const FALLBACK_ADDRESS = 'TFp3Ls4mHdzysbX1qxbwXdMzS8mkvhCMx6'
 
 const EXAMPLES = [
   { cat: '💳', text: '查询我的USDT余额' },
@@ -89,6 +90,8 @@ export default function Chat() {
   const [loading, setLoading] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
   const [latestId, setLatestId] = useState('')
+  const { address: walletAddress } = useWallet()
+  const activeAddress = walletAddress ?? FALLBACK_ADDRESS
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -105,7 +108,7 @@ export default function Chat() {
       const history = messages.map(m => ({ role: m.role, content: m.content }))
       const { data } = await axios.post('/api/v1/chat/message', {
         message: text,
-        walletAddress: DEMO_ADDRESS,
+        walletAddress: activeAddress,
         history,
       })
       const id = (Date.now() + 1).toString()
@@ -141,8 +144,8 @@ export default function Chat() {
             <span className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse" />
             Nile Testnet
             <span className="mx-1 text-text-3/30">|</span>
-            <a href={`${TRONSCAN}/address/${DEMO_ADDRESS}`} target="_blank" className="hover:text-brand transition-colors flex items-center gap-0.5">
-              {DEMO_ADDRESS.slice(0, 6)}...{DEMO_ADDRESS.slice(-4)} <ExternalLink size={8} />
+            <a href={`${TRONSCAN}/address/${activeAddress}`} target="_blank" className="hover:text-brand transition-colors flex items-center gap-0.5">
+              {activeAddress.slice(0, 6)}...{activeAddress.slice(-4)} <ExternalLink size={8} />
             </a>
           </div>
         </div>
