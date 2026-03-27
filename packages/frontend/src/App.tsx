@@ -2,15 +2,16 @@ import { useEffect } from 'react'
 import { Routes, Route } from 'react-router-dom'
 import Layout from './components/Layout.tsx'
 import Landing from './pages/Landing.tsx'
+import Overview from './pages/Overview.tsx'
+import Market from './pages/Market.tsx'
+import DeFi from './pages/DeFi.tsx'
+import Data from './pages/Data.tsx'
+import Auto from './pages/Auto.tsx'
 import Chat from './pages/Chat.tsx'
-import Dashboard from './pages/Dashboard.tsx'
-import Agents from './pages/Agents.tsx'
-import Explorer from './pages/Explorer.tsx'
 import { initWallet } from './stores/wallet.ts'
 
 export default function App() {
   useEffect(() => {
-    // Try reconnect wallet on page load
     const timer = setTimeout(initWallet, 800)
     return () => clearTimeout(timer)
   }, [])
@@ -19,10 +20,12 @@ export default function App() {
     <Routes>
       <Route path="/" element={<Landing />} />
       <Route element={<Layout />}>
+        <Route path="/overview" element={<Overview />} />
+        <Route path="/market" element={<Market />} />
+        <Route path="/defi" element={<DeFi />} />
+        <Route path="/data" element={<Data />} />
+        <Route path="/auto" element={<Auto />} />
         <Route path="/chat" element={<Chat />} />
-        <Route path="/dashboard" element={<Dashboard />} />
-        <Route path="/agents" element={<Agents />} />
-        <Route path="/explorer" element={<Explorer />} />
       </Route>
     </Routes>
   )
