@@ -2,9 +2,10 @@ import { Router, type RequestHandler } from 'express'
 import { z } from 'zod'
 import { ok, err } from '@tronclaw/shared'
 import { checkBalance, sendPayment, createPaymentRequest, getPaymentStatus } from '../modules/payment/index.js'
-import { analyzeAddress, getTxHistory, trackWhales, getTokenInfo } from '../modules/data/index.js'
-import { getDefiYields, swapTokens, optimizeYield } from '../modules/defi/index.js'
-import { createAutoTrade, batchTransfer } from '../modules/automation/index.js'
+import { analyzeAddress, getTxHistory, trackWhales, getTokenInfo, getTxDetail, getNetworkOverview } from '../modules/data/index.js'
+import { getDefiYields, swapTokens, optimizeYield, getDefiOverview } from '../modules/defi/index.js'
+import { createAutoTrade, batchTransfer, getAutoStats, createScheduledTransfer, createWhaleFollow } from '../modules/automation/index.js'
+import { getServices, invokeService as invokeSvc, getMarketStats } from '../modules/market/index.js'
 import type { TokenSymbol } from '@tronclaw/shared'
 
 export const chatRouter: Router = Router()
@@ -26,6 +27,15 @@ async function executeTool(name: string, input: Record<string, any>): Promise<un
     case 'tron_token_info': return getTokenInfo(input.tokenAddress)
     case 'tron_auto_trade': return createAutoTrade(input.tokenPair, input.triggerPrice, input.action, input.amount)
     case 'tron_batch_transfer': return batchTransfer(input.transfers)
+    case 'tron_schedule_transfer': return createScheduledTransfer(input.to, input.amount, input.token, input.schedule ?? 'daily')
+    case 'tron_whale_follow': return createWhaleFollow(input.minAmount ?? '100000', input.token ?? 'USDT', input.followAction ?? 'alert')
+    case 'tron_auto_stats': return getAutoStats()
+    case 'tron_market_services': return getServices(input.category)
+    case 'tron_market_invoke': return invokeSvc(input.serviceId, input.callerAddress ?? '', input.userInput)
+    case 'tron_market_stats': return getMarketStats()
+    case 'tron_defi_overview': return getDefiOverview()
+    case 'tron_network_overview': return getNetworkOverview()
+    case 'tron_tx_detail': return getTxDetail(input.hash)
     default: return { error: `Unknown tool: ${name}` }
   }
 }
@@ -41,6 +51,14 @@ const TOOL_DEFS = [
   { name: 'tron_yield_optimize', description: 'Get AI-powered yield optimization strategy for portfolio', parameters: { type: 'OBJECT', properties: { portfolio: { type: 'ARRAY', items: { type: 'OBJECT', properties: { token: { type: 'STRING' }, amount: { type: 'STRING' } } } }, riskPreference: { type: 'STRING', description: 'low, medium, or high' } }, required: ['portfolio'] } },
   { name: 'tron_analyze_address', description: 'Analyze a TRON address: balances, holdings, tx history', parameters: { type: 'OBJECT', properties: { address: { type: 'STRING' } }, required: ['address'] } },
   { name: 'tron_auto_trade', description: 'Set up automated trading triggered by price conditions', parameters: { type: 'OBJECT', properties: { tokenPair: { type: 'STRING', description: 'e.g. TRX/USDT' }, triggerPrice: { type: 'STRING' }, action: { type: 'STRING', description: 'buy or sell' }, amount: { type: 'STRING' } }, required: ['tokenPair', 'triggerPrice', 'action', 'amount'] } },
+  { name: 'tron_market_services', description: 'List AI Agent services in SealPay marketplace', parameters: { type: 'OBJECT', properties: { category: { type: 'STRING', description: 'Content, Trading, Security, Data, DeFi, or all' } } } },
+  { name: 'tron_market_invoke', description: 'Invoke an AI Agent service and pay via x402', parameters: { type: 'OBJECT', properties: { serviceId: { type: 'STRING' }, callerAddress: { type: 'STRING' }, userInput: { type: 'STRING' } }, required: ['serviceId'] } },
+  { name: 'tron_market_stats', description: 'Get SealPay marketplace statistics', parameters: { type: 'OBJECT', properties: {} } },
+  { name: 'tron_defi_overview', description: 'Get TRON DeFi ecosystem overview: TVL, avg APY, protocols', parameters: { type: 'OBJECT', properties: {} } },
+  { name: 'tron_network_overview', description: 'Get TRON network stats: TRX price, market cap, TPS, block height', parameters: { type: 'OBJECT', properties: {} } },
+  { name: 'tron_tx_detail', description: 'Get detailed breakdown of a specific TRON transaction', parameters: { type: 'OBJECT', properties: { hash: { type: 'STRING', description: 'Transaction hash' } }, required: ['hash'] } },
+  { name: 'tron_schedule_transfer', description: 'Create a scheduled recurring transfer', parameters: { type: 'OBJECT', properties: { to: { type: 'STRING' }, amount: { type: 'STRING' }, token: { type: 'STRING' }, schedule: { type: 'STRING', description: 'daily, weekly, or monthly' } }, required: ['to', 'amount', 'token'] } },
+  { name: 'tron_auto_stats', description: 'Get AutoHarvest automation task statistics', parameters: { type: 'OBJECT', properties: {} } },
 ]
 
 // ─── Gemini provider ──────────────────────────────────────────────────────────
