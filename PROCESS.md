@@ -216,3 +216,107 @@
 | 16. 部署上线 | 5 | 3 | 🔄 需部署账号 |
 | 17. 文档 & 提交 | 5 | 3 | 🔄 待视频录制 |
 | **合计** | **104** | **95** | **91%** |
+
+---
+
+# ═══ V2 改进阶段 ═══
+
+## 阶段 18：Logo + 全局样式升级
+
+- [ ] 18.1 设计 TronClaw SVG Logo（卡通螃蟹钳子，渐变红→绿）
+- [ ] 18.2 全局 CSS 变量（Web3 深色主题 #0A0F1C / #131A2E）
+- [ ] 18.3 渐变色系统（TRON 红 → 品牌绿，蓝紫辅助）
+- [ ] 18.4 动画系统（fade-in-up、slide-in、glow、countUp）
+- [ ] 18.5 网格/光斑背景组件
+- [ ] 18.6 发光卡片组件（hover glow border）
+
+---
+
+## 阶段 19：钱包连接
+
+- [ ] 19.1 安装 `@tronweb3/tronwallet-adapters` + React hooks
+- [ ] 19.2 WalletContext.tsx — Provider 全局状态
+- [ ] 19.3 WalletModal.tsx — 钱包选择弹窗（TronLink/TokenPocket/OKX/BitGet/WalletConnect，含官方图标）
+- [ ] 19.4 WalletButton.tsx — 导航栏连接/断开按钮（显示缩写地址）
+- [ ] 19.5 所有页面使用连接的钱包地址替代硬编码
+- [ ] 19.6 **验证**：TronLink 连接后 Dashboard 显示真实余额
+
+---
+
+## 阶段 20：Landing Page 重做
+
+- [ ] 20.1 全屏 Hero + 粒子/网格动画背景
+- [ ] 20.2 巨大渐变标题 + 实时链上数据 ticker（TRX 价格等）
+- [ ] 20.3 四大功能卡片（渐变边框 glow + 图标）
+- [ ] 20.4 Bank of AI 集成专区（4 个基础设施带描述和标签）
+- [ ] 20.5 架构图动画版（节点连线）
+- [ ] 20.6 三种接入方式（Skills / MCP / REST）带代码预览
+- [ ] 20.7 Footer 带 GitHub + 黑客松链接
+
+---
+
+## 阶段 21：Dashboard 升级
+
+- [ ] 21.1 顶部显示已连接钱包 + 网络状态
+- [ ] 21.2 余额卡片 countUp 动画 + 渐变背景
+- [ ] 21.3 Agent Activity Feed 带 slide-in 动画 + TronScan 链接
+- [ ] 21.4 DeFi 图表渐变填充 + 美化 tooltip
+- [ ] 21.5 所有地址/hash 可点击跳转 TronScan
+- [ ] 21.6 网络选择器（Nile / Shasta / Mainnet）
+
+---
+
+## 阶段 22：Chat UI 升级
+
+- [ ] 22.1 使用连接的钱包地址（不再硬编码）
+- [ ] 22.2 工具调用卡片增加 TronScan 交易链接
+- [ ] 22.3 消息气泡渐变边框 + 发光效果
+- [ ] 22.4 打字机效果（逐字显示 AI 回复）
+- [ ] 22.5 示例按钮分类（Payment / DeFi / Data / Automation）
+
+---
+
+## 阶段 23：TRON 特色功能真实化
+
+- [ ] 23.1 真实 TRC20 转账（用户钱包签名 → TronScan 确认链接）
+- [ ] 23.2 收款请求生成支付二维码 + 状态轮询
+- [ ] 23.3 DeFi 收益率从 SunSwap/JustLend API 实时获取
+- [ ] 23.4 Swap 报价查询 UI（代币对选择 + 金额预览）
+- [ ] 23.5 鲸鱼追踪增加 TronScan 链接 + 金额格式化
+- [ ] 23.6 导航栏显示实时 TRX 价格
+- [ ] 23.7 所有 hash/地址全局可点击 → TronScan
+
+---
+
+## 阶段 24：Agents + Explorer 升级
+
+- [ ] 24.1 Agent 信誉分渐变进度条
+- [ ] 24.2 Agent 注册使用连接的钱包
+- [ ] 24.3 Explorer 代币 logo + TronScan 链接
+- [ ] 24.4 交易历史增加方向图标（发送/接收）+ 类型标记
+
+---
+
+## 阶段 25：代理 + 稳定性
+
+- [ ] 25.1 后端支持 HTTPS_PROXY 环境变量
+- [ ] 25.2 Gemini 调用使用 proxy agent
+- [ ] 25.3 .env.example 更新代理配置说明
+- [ ] 25.4 全链路回归测试（Chat + Dashboard + Agent + WS）
+- [ ] 25.5 Git commit + push
+
+---
+
+## V2 总览统计
+
+| 阶段 | 任务数 | 已完成 | 状态 |
+|------|--------|--------|------|
+| 18. Logo + 全局样式 | 6 | 0 | ⬜ |
+| 19. 钱包连接 | 6 | 0 | ⬜ |
+| 20. Landing Page 重做 | 7 | 0 | ⬜ |
+| 21. Dashboard 升级 | 6 | 0 | ⬜ |
+| 22. Chat UI 升级 | 5 | 0 | ⬜ |
+| 23. TRON 特色功能 | 7 | 0 | ⬜ |
+| 24. Agents + Explorer | 4 | 0 | ⬜ |
+| 25. 代理 + 稳定性 | 5 | 0 | ⬜ |
+| **V2 合计** | **46** | **0** | **0%** |
