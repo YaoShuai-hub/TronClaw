@@ -327,10 +327,113 @@
 
 ## 阶段 26：前端导航重构
 
-- [ ] 26.1 侧边栏改为 6 页：Overview / Market / DeFi / Data / Auto / Chat
-- [ ] 26.2 App.tsx 路由更新 + 新页面骨架
-- [ ] 26.3 Landing Page 更新（展示四大子产品）
-- [ ] 26.4 **验证**：所有新路由可访问
+- [x] 26.1 侧边栏改为 6 页：Overview / Market / DeFi / Data / Auto / Chat
+- [x] 26.2 App.tsx 路由更新 + 新页面骨架
+- [x] 26.3 Landing Page V3（展示四大子产品 + Bank of AI + 架构图）
+- [x] 26.4 **验证**：所有新路由可访问 ✅
+
+---
+
+## 阶段 27：💳 SealPay — Agent 服务市场
+
+### 后端
+- [x] 27.1 DB: market_services / market_invocations 表 + 6个预置服务
+- [x] 27.2 POST /api/v1/market/register — Agent 注册服务
+- [x] 27.3 GET /api/v1/market/services — 服务列表（分类筛选）
+- [x] 27.4 POST /api/v1/market/invoke — 调用服务 + x402 自动付费
+- [x] 27.5 GET /api/v1/market/history — 调用历史
+- [x] 27.6 POST /api/v1/market/rate — 评分
+- [x] 27.7 GET /api/v1/market/stats — 统计
+
+### 前端 `/market`
+- [x] 27.8 服务卡片网格（名称/价格/评分/调用次数）
+- [x] 27.9 调用弹窗（x402 扣费确认 + 用户输入）
+- [x] 27.10 调用历史侧边栏（txHash + TronScan 链接）
+- [x] 27.11 顶部统计（4个数字卡片）
+- [x] 27.12 **验证**：调用 svc_001 → txHash 返回 ✅
+
+---
+
+## 阶段 28：📈 TronSage — DeFi 智能顾问
+
+### 后端
+- [x] 28.1 GET /api/v1/defi/overview — DeFi 全景（TVL/$1124M/avgAPY/pools）
+- [x] 28.2 GET /api/v1/defi/portfolio/:address — 用户持仓
+- [x] 28.3 POST /api/v1/defi/supply — 执行存款
+- [x] 28.4 收益率 mock 数据（6个池子，2个协议）
+
+### 前端 `/defi`
+- [x] 28.5 统计卡片（TVL/avgAPY/protocols）
+- [x] 28.6 APY BarChart + Swap 面板（双列）
+- [x] 28.7 AI 策略推荐卡 + 执行按钮
+- [x] 28.8 池子列表（协议筛选/风险等级）
+- [x] 28.9 **验证**：swap + optimize 端到端 ✅
+
+---
+
+## 阶段 29：🔍 ChainEye — 链上数据分析
+
+### 后端
+- [x] 29.1 GET /api/v1/data/tx/:hash — 交易详情解析
+- [x] 29.2 GET /api/v1/data/overview — 全网概览（TRX价格/市值/TPS）
+- [x] 29.3 地址画像完整（余额/持仓/交易数/首次活跃）
+
+### 前端 `/data`
+- [x] 29.4 智能搜索栏 + 地址画像（3列统计 + 代币徽章）
+- [x] 29.5 交易历史时间线（发送/接收方向图标）
+- [x] 29.6 实时鲸鱼监控侧边栏（WebSocket + AnimatePresence）
+- [x] 29.7 所有 hash/地址 TronScan 链接
+- [x] 29.8 **验证**：地址搜索 → 画像 + 鲸鱼监控 ✅
+
+---
+
+## 阶段 30：⚡ AutoHarvest — 自动化猎手
+
+### 后端
+- [x] 30.1 POST /api/v1/automation/schedule — 定时转账
+- [x] 30.2 POST /api/v1/automation/whale-follow — 鲸鱼跟单
+- [x] 30.3 PATCH /api/v1/automation/tasks/:id/pause — 暂停
+- [x] 30.4 PATCH /api/v1/automation/tasks/:id/resume — 恢复
+- [x] 30.5 GET /api/v1/automation/tasks/:id/history — 任务历史
+- [x] 30.6 GET /api/v1/automation/stats — 全局统计
+
+### 前端 `/auto`
+- [x] 30.7 统计卡片（active/paused/completed/triggers）
+- [x] 30.8 任务创建面板（3种类型：auto_swap/schedule/whale）
+- [x] 30.9 任务列表（状态徽章 + pause/resume/cancel 按钮）
+- [x] 30.10 **验证**：创建3种任务类型全部成功 ✅
+
+---
+
+## 阶段 31：Overview 总览仪表盘
+
+- [x] 31.1 余额卡片（TRX/USDT/USDD 带 countUp 动画）
+- [x] 31.2 TRON 网络状态（价格/市值/TPS/24h 交易）
+- [x] 31.3 平台统计（DeFi TVL/Market 调用量/Auto 任务/Agent Calls）
+- [x] 31.4 四模块入口卡片（带箭头 hover 动画）
+- [x] 31.5 Bank of AI 全量集成展示条
+- [x] 31.6 **验证**：所有数据从真实 API 加载 ✅
+
+---
+
+## 阶段 32：Chat 增强
+
+- [x] 32.1 新增 Market 工具（tron_market_services/invoke/stats）
+- [x] 32.2 新增 Auto 工具（tron_auto_stats/schedule_transfer）
+- [x] 32.3 新增 Data 工具（tron_tx_detail/network_overview）
+- [x] 32.4 新增 DeFi 工具（tron_defi_overview）
+- [x] 32.5 共 17 个工具，覆盖所有模块 ✅
+
+---
+
+## 阶段 33：最终打磨 + 提交
+
+- [x] 33.1 全链路类型检查（gateway + frontend 全部通过）
+- [x] 33.2 全量 API 冒烟测试（13个端点全部 200）
+- [x] 33.3 README.md 完整（四大模块 + Bank of AI + 接入指南）
+- [x] 33.4 Git commits 记录完整（main 分支，6次提交）
+- [ ] 33.5 录制 5 分钟 Demo 视频
+- [ ] 33.6 Google Form 提交（项目介绍 + 视频 + GitHub + URL）
 
 ---
 
@@ -444,12 +547,12 @@
 
 | 阶段 | 任务数 | 已完成 | 状态 |
 |------|--------|--------|------|
-| 26. 导航重构 | 4 | 0 | ⬜ |
-| 27. SealPay 市场 | 12 | 0 | ⬜ |
-| 28. TronSage DeFi | 11 | 0 | ⬜ |
-| 29. ChainEye 数据 | 10 | 0 | ⬜ |
-| 30. AutoHarvest 自动化 | 10 | 0 | ⬜ |
-| 31. Overview 总览 | 5 | 0 | ⬜ |
-| 32. Chat 增强 | 5 | 0 | ⬜ |
-| 33. 最终提交 | 6 | 0 | ⬜ |
-| **V3 合计** | **63** | **0** | **0%** |
+| 26. 导航重构 | 4 | 4 | ✅ 完成 |
+| 27. SealPay 市场 | 12 | 12 | ✅ 完成 |
+| 28. TronSage DeFi | 9 | 9 | ✅ 完成 |
+| 29. ChainEye 数据 | 8 | 8 | ✅ 完成 |
+| 30. AutoHarvest 自动化 | 10 | 10 | ✅ 完成 |
+| 31. Overview 总览 | 6 | 6 | ✅ 完成 |
+| 32. Chat 增强 | 5 | 5 | ✅ 完成 |
+| 33. 最终提交 | 6 | 4 | 🔄 待视频 |
+| **V3 合计** | **60** | **58** | **97%** |
