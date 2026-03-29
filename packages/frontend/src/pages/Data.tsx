@@ -5,8 +5,8 @@ import axios from 'axios'
 import { useLang } from '../stores/lang.ts'
 import { SkeletonCard, SkeletonList } from '../components/Skeleton.tsx'
 
-// Whale monitor always uses mainnet; address search uses Nile (user's testnet wallet)
-const TRONSCAN_MAIN = 'https://tronscan.org/#'
+// All on Nile testnet — whale data, address analysis, tx history
+const TRONSCAN_MAIN = 'https://nile.tronscan.org/#'
 const TRONSCAN_NILE = 'https://nile.tronscan.org/#'
 function shorten(s: string, n = 6) { return s?.length > n * 2 ? `${s.slice(0, n)}...${s.slice(-4)}` : (s ?? '') }
 

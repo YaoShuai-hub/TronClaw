@@ -259,9 +259,6 @@ const KNOWN_WHALE_ADDRESSES = [
   'TDqgB72fAV7vkr5VdJbh4xrMhAGYaBdMc6', // Poloniex hot wallet
 ]
 
-// USDT mainnet contract
-const USDT_MAINNET = 'TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t'
-
 // Cache whale results for 60s to avoid hammering TronGrid on every frontend refresh
 const whaleCache: Map<string, { data: WhaleTransfer[]; ts: number }> = new Map()
 const WHALE_CACHE_TTL = 60_000
@@ -294,48 +291,35 @@ export async function getWhaleTransfers(
   }
 
   try {
-    // Always query mainnet for whale data — real whale activity only on mainnet
-    const mainnetBase = 'https://api.trongrid.io'
-    const apiKey = process.env.TRONGRID_API_KEY
-    const headers = apiKey ? { 'TRON-PRO-API-KEY': apiKey } : {}
-    const contractAddress = token === 'USDT' ? USDT_MAINNET : TOKEN_CONTRACTS['mainnet'][token]
-    const minUsdValue = 100_000 // 100K+ USD for mainnet whale tracking
+    // Use Nile testnet — real activity confirmed (10M, 50K, 5K USDT transfers)
+    const client = tronGridClient() // points to nile.trongrid.io
+    const contractAddress = TOKEN_CONTRACTS[network][token]
+    const minUsdValue = 100 // 100+ USDT threshold for Nile testnet
 
-    // max uint256 — used by approve() calls, not real transfers — filter these out
+    // max uint256 — approve() calls, not real transfers — filter these out
     const MAX_UINT256 = BigInt('115792089237316195423570985008687907853269984665640564039457584007913129639935')
 
-    // Query multiple known whale wallets in parallel with shorter timeout
-    const walletResults = await Promise.allSettled(
-      KNOWN_WHALE_ADDRESSES.map(addr =>
-        axios.get(`${mainnetBase}/v1/accounts/${addr}/transactions/trc20`, {
-          params: { limit: 20, order_by: 'block_timestamp,desc', contract_address: contractAddress },
-          headers,
-          timeout: 4000, // shorter timeout for faster response
-        })
-      )
-    )
+    const { data } = await client.get(`/v1/accounts/${contractAddress}/transactions/trc20`, {
+      params: { limit: 100, order_by: 'block_timestamp,desc' },
+    })
 
-    const allTransfers: WhaleTransfer[] = []
-    const seenHashes = new Set<string>()
+    const transfers = (data?.data ?? []) as Array<Record<string, unknown>>
 
-    for (const result of walletResults) {
-      if (result.status !== 'fulfilled') continue
-      const txs = (result.value.data?.data ?? []) as Array<Record<string, unknown>>
-      for (const tx of txs) {
-        const hash = tx.transaction_id as string
-        if (seenHashes.has(hash)) continue
+    const results = transfers
+      .filter(tx => {
+        try {
+          const raw = BigInt(String(tx.value ?? '0'))
+          if (raw === MAX_UINT256) return false
+          if (raw > BigInt(10_000_000_000) * BigInt(10 ** 18)) return false
+          return true
+        } catch { return false }
+      })
+      .map(tx => {
         const rawAmount = BigInt(String(tx.value ?? '0'))
-        // Skip approve(max) calls — value equals max uint256
-        if (rawAmount === MAX_UINT256) continue
-        // Skip unrealistically large values (> 10 billion USDT)
-        if (rawAmount > BigInt(10_000_000_000) * BigInt(10 ** 6)) continue
-        const decimals = 6 // mainnet USDT is 6 decimals
-        const amount = (Number(rawAmount) / 10 ** decimals).toFixed(2)
-        const usdVal = parseFloat(amount)
-        if (usdVal < minUsdValue) continue
-        seenHashes.add(hash)
-        allTransfers.push({
-          hash,
+        const autoDecimals = rawAmount > BigInt(10 ** 15) ? 18 : 6
+        const amount = (Number(rawAmount) / 10 ** autoDecimals).toFixed(2)
+        return {
+          hash: tx.transaction_id as string,
           from: tx.from as string,
           to: tx.to as string,
           amount,
@@ -343,42 +327,18 @@ export async function getWhaleTransfers(
           tokenSymbol: token,
           timestamp: tx.block_timestamp as number,
           usdValue: amount,
-        })
-      }
-    }
+        }
+      })
+      .filter(tx =>
+        parseFloat(tx.amount) >= minUsdValue &&
+        tx.from !== contractAddress
+      )
+      .slice(0, limit)
 
-    // Sort by timestamp desc and return top N
-    allTransfers.sort((a, b) => b.timestamp - a.timestamp)
-    if (allTransfers.length > 0) {
-      const result = allTransfers.slice(0, limit)
-      whaleCache.set(cacheKey, { data: result, ts: Date.now() })
-      return result
+    if (results.length > 0) {
+      whaleCache.set(cacheKey, { data: results, ts: Date.now() })
+      return results
     }
-
-    // If no 100K+ transfers found, lower threshold to 10K for demo
-    const seenHashes2 = new Set<string>()
-    const smaller: WhaleTransfer[] = []
-    for (const result of walletResults) {
-      if (result.status !== 'fulfilled') continue
-      const txs = (result.value.data?.data ?? []) as Array<Record<string, unknown>>
-      for (const tx of txs) {
-        const hash = tx.transaction_id as string
-        if (seenHashes2.has(hash)) continue
-        const rawAmount = BigInt(String(tx.value ?? '0'))
-        if (rawAmount === MAX_UINT256) continue
-        if (rawAmount > BigInt(10_000_000_000) * BigInt(10 ** 6)) continue
-        const amount = (Number(rawAmount) / 10 ** 6).toFixed(2)
-        if (parseFloat(amount) < 10_000) continue
-        seenHashes2.add(hash)
-        smaller.push({
-          hash, from: tx.from as string, to: tx.to as string,
-          amount, token: contractAddress, tokenSymbol: token,
-          timestamp: tx.block_timestamp as number, usdValue: amount,
-        })
-      }
-    }
-    smaller.sort((a, b) => b.timestamp - a.timestamp)
-    if (smaller.length > 0) return smaller.slice(0, limit)
   } catch (e) {
     console.warn('[Data] Whale tracker error:', (e as Error).message)
   }
