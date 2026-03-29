@@ -102,7 +102,7 @@ export default function DeFi() {
               const receipt = await tronWeb.trx.sendTransaction(SWAP_DEMO_ADDRESS, 1) as { txid?: string; result?: boolean }
               const txId = receipt.txid ?? ''
               const network = 'nile' // testnet
-              const scanUrl = `https://nile.tronscan.org/#/transaction/${txId}`
+              const scanUrl = `https://tronscan.org/#/transaction/${txId}`
               setSwapResult(`✅ ${t('swap')}: ${swapAmount} ${swapFrom} → ${data.data.toAmount} ${swapTo} via ${unsignedTx.protocol as string}\n🔗 TronLink signed · <a href="${scanUrl}" target="_blank">${txId.slice(0, 20)}...</a>`)
             } catch (signErr) {
               const errMsg = (signErr as Error).message ?? 'Unknown error'

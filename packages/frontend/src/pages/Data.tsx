@@ -5,7 +5,9 @@ import axios from 'axios'
 import { useLang } from '../stores/lang.ts'
 import { SkeletonCard, SkeletonList } from '../components/Skeleton.tsx'
 
-const TRONSCAN = 'https://nile.tronscan.org/#'
+// Whale monitor always uses mainnet; address search uses Nile (user's testnet wallet)
+const TRONSCAN_MAIN = 'https://tronscan.org/#'
+const TRONSCAN_NILE = 'https://nile.tronscan.org/#'
 function shorten(s: string, n = 6) { return s?.length > n * 2 ? `${s.slice(0, n)}...${s.slice(-4)}` : (s ?? '') }
 
 interface AddressInfo {
@@ -111,7 +113,7 @@ export default function Data() {
                     <span className="text-sm font-semibold text-text-0">{t('addressProfile')}</span>
                     {info.tags.map(tg => <span key={tg} className="badge badge-purple !text-[9px]">{tg}</span>)}
                   </div>
-                  <a href={`${TRONSCAN}/address/${info.address}`} target="_blank"
+                  <a href={`${TRONSCAN_NILE}/address/${info.address}`} target="_blank"
                     className="text-xs font-mono text-text-2 hover:text-brand flex items-center gap-1 mb-4 break-all">
                     {info.address} <ExternalLink size={10} />
                   </a>
@@ -143,7 +145,7 @@ export default function Data() {
                             <div className={`w-6 h-6 rounded-lg flex items-center justify-center ${isSend ? 'bg-red-400/10 text-red-400' : 'bg-accent/10 text-accent'}`}>
                               {isSend ? <ArrowUpRight size={12} /> : <ArrowDownLeft size={12} />}
                             </div>
-                            <a href={`${TRONSCAN}/transaction/${tx.hash}`} target="_blank" className="font-mono text-text-2 hover:text-brand">{shorten(tx.hash)}</a>
+                            <a href={`${TRONSCAN_NILE}/transaction/${tx.hash}`} target="_blank" className="font-mono text-text-2 hover:text-brand">{shorten(tx.hash)}</a>
                             <span className={`ml-auto font-medium ${isSend ? 'text-red-400' : 'text-accent'}`}>
                               {isSend ? '-' : '+'}{parseFloat(tx.value || '0').toLocaleString()} {tx.tokenSymbol}
                             </span>
@@ -186,7 +188,7 @@ export default function Data() {
                       <motion.div key={`${w.hash}-${i}`} layout initial={{ opacity: 0, x: 12 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0 }}
                         className="p-2.5 rounded-xl bg-bg-3/50 border border-white/[0.04] text-[11px]">
                         <div className="flex items-center justify-between mb-1">
-                          <a href={`${TRONSCAN}/transaction/${w.hash}`} target="_blank" className="font-mono text-text-2 hover:text-brand">
+                          <a href={`${TRONSCAN_MAIN}/transaction/${w.hash}`} target="_blank" className="font-mono text-text-2 hover:text-brand">
                             {shorten(w.hash, 5)}
                           </a>
                           <div className="text-right">
@@ -197,9 +199,9 @@ export default function Data() {
                           </div>
                         </div>
                         <div className="flex items-center gap-1 text-text-3">
-                          <a href={`${TRONSCAN}/address/${w.from}`} target="_blank" className="font-mono hover:text-brand">{shorten(w.from, 5)}</a>
+                          <a href={`${TRONSCAN_MAIN}/address/${w.from}`} target="_blank" className="font-mono hover:text-brand">{shorten(w.from, 5)}</a>
                           <span>→</span>
-                          <a href={`${TRONSCAN}/address/${w.to}`} target="_blank" className="font-mono hover:text-brand">{shorten(w.to, 5)}</a>
+                          <a href={`${TRONSCAN_MAIN}/address/${w.to}`} target="_blank" className="font-mono hover:text-brand">{shorten(w.to, 5)}</a>
                         </div>
                         <div className="text-text-3 mt-0.5">{new Date(w.timestamp).toLocaleTimeString()}</div>
                       </motion.div>
