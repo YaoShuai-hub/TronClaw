@@ -1,6 +1,6 @@
 import { Router, type RequestHandler } from 'express'
 import { z } from 'zod'
-import { analyzeAddress, getTxHistory, trackWhales, getTokenInfo, getTxDetail, getNetworkOverview } from '../modules/data/index.js'
+import { analyzeAddress, getTxHistory, getWhaleTransfers, getTokenInfo, getTxDetail, getNetworkOverview } from '../modules/data/index.js'
 import { isValidAddress } from '../tron/wallet.js'
 import { ok, err } from '@tronclaw/shared'
 import type { TokenSymbol } from '@tronclaw/shared'
@@ -28,7 +28,7 @@ const whalesHandler: RequestHandler = async (req, res) => {
   try {
     const schema = z.object({ token: z.enum(['TRX', 'USDT', 'USDD']).optional().default('USDT'), minAmount: z.string().optional(), hours: z.string().optional().default('24') })
     const { token, minAmount, hours } = schema.parse(req.query)
-    res.json(ok(await trackWhales(token as TokenSymbol, minAmount, parseInt(hours, 10))))
+    res.json(ok(await getWhaleTransfers(token as TokenSymbol, parseInt(hours, 10))))
   } catch (e) { res.status(500).json(err((e as Error).message)) }
 }
 

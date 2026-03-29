@@ -1,6 +1,6 @@
 import { Router, type RequestHandler } from 'express'
 import { z } from 'zod'
-import { getDefiYields, swapTokens, lendSupply, optimizeYield, getDefiOverview, getPortfolio } from '../modules/defi/index.js'
+import { getDefiYields, swapTokens, lendSupply, optimizeYield, getDefiOverview, getPortfolio, getSwapRoutes } from '../modules/defi/index.js'
 import { ok, err } from '@tronclaw/shared'
 import type { TokenSymbol } from '@tronclaw/shared'
 
@@ -53,8 +53,17 @@ const optimizeHandler: RequestHandler = async (req, res) => {
   } catch (e) { res.status(500).json(err((e as Error).message)) }
 }
 
+const routesHandler: RequestHandler = async (req, res) => {
+  try {
+    const schema = z.object({ fromToken: z.string(), toToken: z.string(), amount: z.string().default('100') })
+    const { fromToken, toToken, amount } = schema.parse(req.query)
+    res.json(ok(await getSwapRoutes(fromToken, toToken, amount)))
+  } catch (e) { res.status(500).json(err((e as Error).message)) }
+}
+
 defiRouter.get('/overview', overviewHandler)
 defiRouter.get('/yields', yieldsHandler)
+defiRouter.get('/routes', routesHandler)
 defiRouter.get('/portfolio/:address', portfolioHandler)
 defiRouter.post('/swap', swapHandler)
 defiRouter.post('/lend', lendHandler)

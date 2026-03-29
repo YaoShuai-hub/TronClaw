@@ -2,7 +2,7 @@ import { Router, type RequestHandler } from 'express'
 import { z } from 'zod'
 import { ok, err } from '@tronclaw/shared'
 import { checkBalance, sendPayment, createPaymentRequest, getPaymentStatus } from '../modules/payment/index.js'
-import { analyzeAddress, getTxHistory, trackWhales, getTokenInfo, getTxDetail, getNetworkOverview } from '../modules/data/index.js'
+import { analyzeAddress, getTxHistory, getWhaleTransfers, getTokenInfo, getTxDetail, getNetworkOverview } from '../modules/data/index.js'
 import { getDefiYields, swapTokens, optimizeYield, getDefiOverview } from '../modules/defi/index.js'
 import { createAutoTrade, batchTransfer, getAutoStats, createScheduledTransfer, createWhaleFollow } from '../modules/automation/index.js'
 import { getServices, invokeService as invokeSvc, getMarketStats } from '../modules/market/index.js'
@@ -19,7 +19,7 @@ async function executeTool(name: string, input: Record<string, any>): Promise<un
     case 'tron_send_payment': return sendPayment(input.to, input.amount, input.token as TokenSymbol, input.memo)
     case 'tron_create_payment_request': return createPaymentRequest(input.amount, input.token as TokenSymbol, input.description)
     case 'tron_payment_status': return getPaymentStatus(input.payId)
-    case 'tron_whale_tracker': return trackWhales((input.token ?? 'USDT') as TokenSymbol, undefined, input.hours ?? 24)
+    case 'tron_whale_tracker': return getWhaleTransfers((input.token ?? 'USDT') as TokenSymbol, undefined, input.hours ?? 24)
     case 'tron_defi_yields': return getDefiYields(input.protocol ?? 'all')
     case 'tron_yield_optimize': return optimizeYield(input.portfolio, input.riskPreference ?? 'medium')
     case 'tron_analyze_address': return analyzeAddress(input.address)

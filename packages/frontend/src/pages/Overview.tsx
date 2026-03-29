@@ -4,6 +4,7 @@ import { NavLink } from 'react-router-dom'
 import { Store, TrendingUp, Search, Zap, DollarSign, Activity, Bot, ArrowRight, Globe } from 'lucide-react'
 import axios from 'axios'
 import { useWallet } from '../stores/wallet.ts'
+import { useLang } from '../stores/lang.ts'
 
 const FALLBACK = 'TFp3Ls4mHdzysbX1qxbwXdMzS8mkvhCMx6'
 
@@ -30,6 +31,7 @@ function CountUp({ value, decimals = 2 }: { value: number; decimals?: number }) 
 
 export default function Overview() {
   const { address } = useWallet()
+  const { t } = useLang()
   const addr = address ?? FALLBACK
   const [balances, setBalances] = useState<Array<{ token: string; balance: string; usdValue: string }>>([])
   const [networkData, setNetworkData] = useState<Record<string, string> | null>(null)
@@ -75,8 +77,8 @@ export default function Overview() {
       <div className="p-6 space-y-5 max-w-6xl mx-auto">
 
         <div className="animate-fade-in-up">
-          <h1 className="text-2xl font-bold text-text-0">TronClaw Overview</h1>
-          <p className="text-sm text-text-3 mt-0.5">AI Agent platform for TRON — 4 integrated modules, all Bank of AI infra</p>
+          <h1 className="text-2xl font-bold text-text-0">{t('platformOverview')}</h1>
+          <p className="text-sm text-text-3 mt-0.5">{t('platformDesc')}</p>
         </div>
 
         {/* Wallet Balances */}
@@ -94,12 +96,12 @@ export default function Overview() {
         {/* TRON Network Stats */}
         {networkData && (
           <div className="glass-card p-4">
-            <div className="flex items-center gap-2 mb-3"><Globe size={13} className="text-accent" /><span className="text-sm font-semibold text-text-0">TRON Network</span><span className="badge badge-green !text-[9px] ml-auto">Live</span></div>
+            <div className="flex items-center gap-2 mb-3"><Globe size={13} className="text-accent" /><span className="text-sm font-semibold text-text-0">{t('tronNetwork')}</span><span className="badge badge-green !text-[9px] ml-auto">Live</span></div>
             <div className="grid grid-cols-4 gap-4">
-              <div><div className="text-[10px] text-text-3 mb-1">TRX Price</div><div className="font-bold text-text-0">{networkData.tronPrice}</div></div>
-              <div><div className="text-[10px] text-text-3 mb-1">Market Cap</div><div className="font-bold text-text-0">{networkData.marketCap}</div></div>
-              <div><div className="text-[10px] text-text-3 mb-1">24h Txns</div><div className="font-bold text-text-0">{networkData.transactions24h}</div></div>
-              <div><div className="text-[10px] text-text-3 mb-1">TPS</div><div className="font-bold text-text-0">{networkData.tpsAverage}</div></div>
+              <div><div className="text-[10px] text-text-3 mb-1">{t('trxPrice')}</div><div className="font-bold text-text-0">{networkData.tronPrice}</div></div>
+              <div><div className="text-[10px] text-text-3 mb-1">{t('marketCap')}</div><div className="font-bold text-text-0">{networkData.marketCap}</div></div>
+              <div><div className="text-[10px] text-text-3 mb-1">{t('transactions24h')}</div><div className="font-bold text-text-0">{networkData.transactions24h}</div></div>
+              <div><div className="text-[10px] text-text-3 mb-1">{t('tpsAverage')}</div><div className="font-bold text-text-0">{networkData.tpsAverage}</div></div>
             </div>
           </div>
         )}
@@ -107,10 +109,10 @@ export default function Overview() {
         {/* Platform Stats */}
         <div className="grid grid-cols-4 gap-4">
           {[
-            { label: 'DeFi TVL', value: defiOverview?.totalTVLFormatted ?? '...', sub: `${defiOverview?.avgAPY ?? '0'}% avg APY`, color: 'text-blue-400' },
-            { label: 'Market Calls', value: marketStats?.totalInvocations?.toString() ?? '0', sub: `$${marketStats?.totalVolume ?? '0'} volume`, color: 'text-brand' },
-            { label: 'Auto Tasks', value: autoStats?.active?.toString() ?? '0', sub: `${autoStats?.totalTriggers ?? 0} triggers`, color: 'text-accent' },
-            { label: 'Agent Calls', value: String(agentCalls), sub: 'this session', color: 'text-purple-400' },
+            { label: t('defiTvl'), value: defiOverview?.totalTVLFormatted ?? '...', sub: `${defiOverview?.avgAPY ?? '0'}% ${t('avgApy')}`, color: 'text-blue-400' },
+            { label: t('marketCalls'), value: marketStats?.totalInvocations?.toString() ?? '0', sub: `$${marketStats?.totalVolume ?? '0'} volume`, color: 'text-brand' },
+            { label: t('autoTasks'), value: autoStats?.active?.toString() ?? '0', sub: `${autoStats?.totalTriggers ?? 0} ${t('triggers')}`, color: 'text-accent' },
+            { label: t('agentCalls'), value: String(agentCalls), sub: t('thisSession'), color: 'text-purple-400' },
           ].map((s, i) => (
             <motion.div key={s.label} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 + i * 0.06 }}
               className="glass-card p-4">
@@ -123,7 +125,7 @@ export default function Overview() {
 
         {/* Four modules */}
         <div>
-          <h2 className="text-base font-semibold text-text-0 mb-3">Platform Modules</h2>
+          <h2 className="text-base font-semibold text-text-0 mb-3">{t('platformModules')}</h2>
           <div className="grid sm:grid-cols-2 gap-3">
             {MODULES.map((m, i) => (
               <motion.div key={m.to} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 + i * 0.08 }}>
@@ -141,7 +143,7 @@ export default function Overview() {
 
         {/* Bank of AI bar */}
         <div className="glass-card p-3 flex items-center justify-between flex-wrap gap-2">
-          <span className="text-xs font-semibold text-text-0 flex items-center gap-2"><Activity size={12} className="text-brand" /> Bank of AI Integration</span>
+          <span className="text-xs font-semibold text-text-0 flex items-center gap-2"><Activity size={12} className="text-brand" /> {t('bankOfAIIntegration')}</span>
           <div className="flex gap-1.5 flex-wrap">
             {['x402 Payment', '8004 Identity', 'MCP Server', 'Skills Modules'].map(name => (
               <span key={name} className="badge badge-green !text-[9px]">✅ {name}</span>

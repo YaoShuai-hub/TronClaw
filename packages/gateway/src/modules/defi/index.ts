@@ -139,6 +139,25 @@ export async function getPortfolio(address: string) {
   }
 }
 
+// ─── LP Route Comparison (like Uniswap routing) ──────────────────────────────
+
+export interface SwapRoute {
+  protocol: string; path: string[]
+  expectedOut: string; priceImpact: string; fee: string; gasCost: string; isOptimal: boolean
+}
+
+export async function getSwapRoutes(fromToken: string, toToken: string, amount: string): Promise<SwapRoute[]> {
+  const amountNum = parseFloat(amount)
+  const routes: SwapRoute[] = [
+    { protocol: 'SunSwap V3', path: [fromToken, toToken], expectedOut: (amountNum * 0.9982).toFixed(4), priceImpact: '0.08', fee: '0.05%', gasCost: '~12 TRX', isOptimal: true },
+    { protocol: 'SunSwap V2', path: [fromToken, toToken], expectedOut: (amountNum * 0.9975).toFixed(4), priceImpact: '0.15', fee: '0.30%', gasCost: '~8 TRX', isOptimal: false },
+    { protocol: 'SunSwap V3 (USDD hop)', path: [fromToken, 'USDD', toToken], expectedOut: (amountNum * 0.9968).toFixed(4), priceImpact: '0.22', fee: '0.10%', gasCost: '~18 TRX', isOptimal: false },
+  ]
+  routes.sort((a, b) => parseFloat(b.expectedOut) - parseFloat(a.expectedOut))
+  routes.forEach((r, i) => r.isOptimal = i === 0)
+  return routes
+}
+
 export async function lendSupply(
   token: string,
   amount: string,

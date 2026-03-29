@@ -130,52 +130,81 @@ export async function getTxHistory(
   }))
 }
 
-// ─── Whale Tracker ────────────────────────────────────────────────────────────
+// ─── Known Whale Addresses (TRON ecosystem) ──────────────────────────────────
 
-export async function trackWhales(
+const KNOWN_WHALE_ADDRESSES = [
+  'TKzxdSv2FZKQrEqkKVgp5DcwEXBEKMg2Ax', // Binance hot wallet
+  'TNaRAoLUyYEV2uF7GgWZrCHPMoFCBRNPnS', // OKX wallet
+  'TWd4WrZ9wn84f5x1hZhL4DHvk738ns5jwH', // Huobi hot wallet
+  'TBv2uXMqMFVsRzj3Y9rHEo7FRXEjSvKGXP', // Bybit wallet
+  'TXyyApFiYt3BkHsKUiEDfMKFYSWjyR4HKc', // JustLend protocol
+]
+
+// ─── Get Real Whale Transfers from TronGrid ───────────────────────────────────
+
+export async function getWhaleTransfers(
   token: TokenSymbol = 'USDT',
-  minAmount?: string,
-  timeRangeHours = 24,
+  hours = 24,
+  limit = 20,
 ): Promise<WhaleTransfer[]> {
-  if (isMockMode()) return MOCK_WHALES
-
-  const client = tronGridClient()
   const network = getNetwork()
-  const contractAddress = TOKEN_CONTRACTS[network][token]
-  const threshold = minAmount ?? WHALE_THRESHOLD[token]
 
-  const minTs = Date.now() - timeRangeHours * 3600 * 1000
+  if (isMockMode()) {
+    return Array.from({ length: 10 }, (_, i) => ({
+      hash: `mock_whale_${i.toString().padStart(32, '0')}`,
+      from: KNOWN_WHALE_ADDRESSES[i % KNOWN_WHALE_ADDRESSES.length],
+      to: `T${Math.random().toString(36).slice(2, 10).toUpperCase().padEnd(33, 'X')}`,
+      amount: String(Math.floor(Math.random() * 5000000 + 100000)),
+      token: TOKEN_CONTRACTS[network][token],
+      tokenSymbol: token,
+      timestamp: Date.now() - i * Math.floor(Math.random() * 3600000),
+      usdValue: String(Math.floor(Math.random() * 5000000 + 100000)),
+    }))
+  }
 
-  const { data } = await client.get(`/v1/contracts/${contractAddress}/transactions`, {
-    params: {
-      limit: 50,
-      order_by: 'block_timestamp,desc',
-      min_block_timestamp: minTs,
-    },
-  })
+  try {
+    const client = tronGridClient()
+    const contractAddress = TOKEN_CONTRACTS[network][token]
+    const minTs = Date.now() - hours * 3600 * 1000
+    const decimals = token === 'USDD' ? 18 : 6
 
-  const decimals = token === 'USDD' ? 18 : 6
-
-  return (data?.data ?? [])
-    .filter((tx: Record<string, unknown>) => {
-      const raw = BigInt((tx.value ?? '0') as string)
-      const threshold_raw = BigInt(threshold) * BigInt(10 ** decimals)
-      return raw >= threshold_raw
+    const { data } = await client.get(`/v1/contracts/${contractAddress}/transactions`, {
+      params: {
+        limit: Math.min(limit * 3, 100), // fetch more to filter
+        order_by: 'block_timestamp,desc',
+        min_block_timestamp: minTs,
+        event_name: 'Transfer',
+      },
     })
-    .map((tx: Record<string, unknown>) => {
-      const raw = BigInt((tx.value ?? '0') as string)
-      const amount = (Number(raw) / 10 ** decimals).toFixed(decimals)
-      return {
-        hash: tx.transaction_id as string,
-        from: tx.from as string,
-        to: tx.to as string,
-        amount,
-        token: contractAddress,
-        tokenSymbol: token,
-        timestamp: tx.block_timestamp as number,
-        usdValue: amount, // stablecoins ~ $1
-      }
-    })
+
+    const threshold = BigInt(100_000) * BigInt(10 ** decimals) // 100K tokens minimum
+
+    return (data?.data ?? [])
+      .filter((tx: Record<string, unknown>) => {
+        try {
+          const val = BigInt(String(tx.value ?? '0'))
+          return val >= threshold
+        } catch { return false }
+      })
+      .slice(0, limit)
+      .map((tx: Record<string, unknown>) => {
+        const rawAmount = BigInt(String(tx.value ?? '0'))
+        const amount = (Number(rawAmount) / 10 ** decimals).toFixed(decimals === 18 ? 2 : 6)
+        return {
+          hash: tx.transaction_id as string,
+          from: tx.from as string,
+          to: tx.to as string,
+          amount,
+          token: contractAddress,
+          tokenSymbol: token,
+          timestamp: tx.block_timestamp as number,
+          usdValue: amount, // stablecoins ≈ $1
+        }
+      })
+  } catch (e) {
+    console.warn('[Data] Whale tracker error:', (e as Error).message)
+    return []
+  }
 }
 
 // ─── Transaction Detail ───────────────────────────────────────────────────────

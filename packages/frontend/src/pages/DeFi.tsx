@@ -1,14 +1,18 @@
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { TrendingUp, ArrowRightLeft, Droplets, Shield, Loader2, ExternalLink } from 'lucide-react'
+import { TrendingUp, ArrowRightLeft, Droplets, Shield, Loader2, CheckCircle, Zap } from 'lucide-react'
 import axios from 'axios'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
+import { useLang } from '../stores/lang.ts'
 
 interface Pool { protocol: string; name: string; token0: string; token1?: string; apy: string; tvl: string; riskLevel: string }
+interface SwapRoute { protocol: string; path: string[]; expectedOut: string; priceImpact: string; fee: string; gasCost: string; isOptimal: boolean }
 
 const RISK_STYLE: Record<string, string> = { low: 'badge-green', medium: 'badge-orange', high: 'badge-red' }
+const TOKENS = ['TRX', 'USDT', 'USDD', 'BTT', 'WIN']
 
 export default function DeFi() {
+  const { t } = useLang()
   const [pools, setPools] = useState<Pool[]>([])
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState<string>('all')
@@ -17,6 +21,9 @@ export default function DeFi() {
   const [swapAmount, setSwapAmount] = useState('100')
   const [swapping, setSwapping] = useState(false)
   const [swapResult, setSwapResult] = useState<string | null>(null)
+  const [routes, setRoutes] = useState<SwapRoute[]>([])
+  const [loadingRoutes, setLoadingRoutes] = useState(false)
+  const [selectedRoute, setSelectedRoute] = useState<SwapRoute | null>(null)
   const [optimizing, setOptimizing] = useState(false)
   const [strategy, setStrategy] = useState<{ strategy: string; expectedApy: string; steps: Array<{ action: string; description: string }> } | null>(null)
 
@@ -24,17 +31,28 @@ export default function DeFi() {
     axios.get('/api/v1/defi/yields').then(r => { setPools(r.data.data); setLoading(false) }).catch(() => setLoading(false))
   }, [])
 
+  // Load routes when swap tokens change
+  useEffect(() => {
+    if (!swapFrom || !swapTo || swapFrom === swapTo) return
+    setLoadingRoutes(true)
+    axios.get(`/api/v1/defi/routes?fromToken=${swapFrom}&toToken=${swapTo}&amount=${swapAmount}`)
+      .then(r => { setRoutes(r.data.data); setSelectedRoute(r.data.data[0] ?? null) })
+      .catch(() => setRoutes([]))
+      .finally(() => setLoadingRoutes(false))
+  }, [swapFrom, swapTo, swapAmount])
+
   const filtered = filter === 'all' ? pools : pools.filter(p => p.protocol === filter)
   const totalTVL = pools.reduce((s, p) => s + parseFloat(p.tvl), 0)
   const avgAPY = pools.length ? (pools.reduce((s, p) => s + parseFloat(p.apy), 0) / pools.length).toFixed(1) : '0'
   const chartData = pools.slice(0, 6).map(p => ({ name: p.name.replace(' LP', '').replace(' Supply', ''), apy: parseFloat(p.apy) }))
 
   const handleSwap = async () => {
+    if (!selectedRoute) return
     setSwapping(true); setSwapResult(null)
     try {
       const { data } = await axios.post('/api/v1/defi/swap', { fromToken: swapFrom, toToken: swapTo, amount: swapAmount, slippage: 0.5 })
-      setSwapResult(`✅ Swapped ${swapAmount} ${swapFrom} → ${data.data.toAmount} ${swapTo}`)
-    } catch (e) { setSwapResult('❌ Swap failed') }
+      setSwapResult(`✅ ${t('swap')}: ${swapAmount} ${swapFrom} → ${data.data.toAmount} ${swapTo} via ${selectedRoute.protocol}`)
+    } catch (e) { setSwapResult(`❌ ${(e as Error).message}`) }
     finally { setSwapping(false) }
   }
 
@@ -51,22 +69,22 @@ export default function DeFi() {
     <div className="h-full overflow-y-auto">
       <div className="p-6 space-y-5 max-w-6xl mx-auto">
         <div className="animate-fade-in-up">
-          <div className="flex items-center gap-2 mb-1"><span className="text-2xl">📈</span><h1 className="text-2xl font-bold text-text-0">TronSage</h1></div>
-          <p className="text-sm text-text-3">AI DeFi advisor — yield optimization & strategy execution on TRON</p>
+          <div className="flex items-center gap-2 mb-1"><span className="text-2xl">📈</span><h1 className="text-2xl font-bold text-text-0">{t('tronSageTitle')}</h1></div>
+          <p className="text-sm text-text-3">{t('tronSageDesc')}</p>
         </div>
 
         {/* Stats */}
         <div className="grid grid-cols-3 gap-4 animate-fade-in-up delay-1">
           <div className="glass-card p-4"><div className="text-[10px] text-text-3 mb-1">Total TVL</div><div className="text-xl font-bold text-text-0">${(totalTVL / 1e6).toFixed(0)}M</div></div>
-          <div className="glass-card p-4"><div className="text-[10px] text-text-3 mb-1">Avg APY</div><div className="text-xl font-bold text-accent">{avgAPY}%</div></div>
-          <div className="glass-card p-4"><div className="text-[10px] text-text-3 mb-1">Protocols</div><div className="text-xl font-bold text-text-0">{new Set(pools.map(p => p.protocol)).size}</div></div>
+          <div className="glass-card p-4"><div className="text-[10px] text-text-3 mb-1">{t('avgApy')}</div><div className="text-xl font-bold text-accent">{avgAPY}%</div></div>
+          <div className="glass-card p-4"><div className="text-[10px] text-text-3 mb-1">{t('protocols')}</div><div className="text-xl font-bold text-text-0">{new Set(pools.map(p => p.protocol)).size}</div></div>
         </div>
 
-        {/* Chart + Swap side by side */}
+        {/* Chart + Swap */}
         <div className="grid lg:grid-cols-2 gap-4">
           {/* APY Chart */}
           <div className="glass-card p-5">
-            <div className="flex items-center gap-2 mb-4"><TrendingUp size={14} className="text-blue-400" /><span className="text-sm font-semibold text-text-0">Yield Rates (%)</span></div>
+            <div className="flex items-center gap-2 mb-4"><TrendingUp size={14} className="text-blue-400" /><span className="text-sm font-semibold text-text-0">{t('yieldRates')}</span></div>
             <ResponsiveContainer width="100%" height={160}>
               <BarChart data={chartData} barSize={20}>
                 <XAxis dataKey="name" tick={{ fill: '#52525b', fontSize: 10 }} axisLine={false} tickLine={false} />
@@ -80,39 +98,69 @@ export default function DeFi() {
 
           {/* Swap Panel */}
           <div className="glass-card p-5">
-            <div className="flex items-center gap-2 mb-4"><ArrowRightLeft size={14} className="text-brand" /><span className="text-sm font-semibold text-text-0">Quick Swap</span></div>
+            <div className="flex items-center gap-2 mb-4"><ArrowRightLeft size={14} className="text-brand" /><span className="text-sm font-semibold text-text-0">{t('quickSwap')}</span></div>
             <div className="space-y-3">
               <div className="flex gap-2 items-center">
                 <select value={swapFrom} onChange={e => setSwapFrom(e.target.value)} className="flex-1 bg-bg-4 border border-white/[0.06] rounded-xl px-3 py-2.5 text-sm text-text-0 outline-none">
-                  <option value="TRX">TRX</option><option value="USDT">USDT</option><option value="USDD">USDD</option>
+                  {TOKENS.map(tk => <option key={tk} value={tk}>{tk}</option>)}
                 </select>
-                <span className="text-text-3">→</span>
+                <span className="text-text-3 text-lg">→</span>
                 <select value={swapTo} onChange={e => setSwapTo(e.target.value)} className="flex-1 bg-bg-4 border border-white/[0.06] rounded-xl px-3 py-2.5 text-sm text-text-0 outline-none">
-                  <option value="USDT">USDT</option><option value="TRX">TRX</option><option value="USDD">USDD</option>
+                  {TOKENS.filter(tk => tk !== swapFrom).map(tk => <option key={tk} value={tk}>{tk}</option>)}
                 </select>
               </div>
               <input value={swapAmount} onChange={e => setSwapAmount(e.target.value)} placeholder="Amount"
                 className="w-full bg-bg-4 border border-white/[0.06] rounded-xl px-3 py-2.5 text-sm text-text-0 outline-none focus:border-brand/40" />
-              <button onClick={handleSwap} disabled={swapping} className="btn-primary w-full !text-sm disabled:opacity-50">
-                {swapping ? <><Loader2 size={14} className="animate-spin" /> Swapping...</> : 'Swap (SunSwap)'}
+
+              {/* LP Route Comparison */}
+              {loadingRoutes ? (
+                <div className="text-xs text-text-3 flex items-center gap-2"><Loader2 size={12} className="animate-spin" /> Loading routes...</div>
+              ) : routes.length > 0 && (
+                <div>
+                  <div className="text-[10px] text-text-3 mb-1.5 flex items-center gap-1.5"><Zap size={10} className="text-accent" />{t('lpComparison')}</div>
+                  <div className="space-y-1.5">
+                    {routes.map((route, i) => (
+                      <button key={i} onClick={() => setSelectedRoute(route)}
+                        className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs border transition-all
+                          ${selectedRoute?.protocol === route.protocol ? 'border-brand/40 bg-brand/5' : 'border-white/[0.06] bg-bg-4 hover:border-white/[0.12]'}`}>
+                        <div className="flex-1 text-left">
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium text-text-0">{route.protocol}</span>
+                            {route.isOptimal && <span className="badge badge-green !text-[8px] !py-0">{t('bestRoute')}</span>}
+                          </div>
+                          <div className="text-text-3 text-[10px]">{route.path.join(' → ')}</div>
+                        </div>
+                        <div className="text-right flex-shrink-0">
+                          <div className="font-bold text-accent">{route.expectedOut} {swapTo}</div>
+                          <div className="text-text-3 text-[10px]">{t('fee')} {route.fee} · {t('priceImpact')} {route.priceImpact}%</div>
+                        </div>
+                        {selectedRoute?.protocol === route.protocol && <CheckCircle size={14} className="text-brand flex-shrink-0" />}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <button onClick={handleSwap} disabled={swapping || !selectedRoute} className="btn-primary w-full !text-sm disabled:opacity-50">
+                {swapping ? <><Loader2 size={14} className="animate-spin" /> {t('swapping')}</> : t('swap')}
               </button>
-              {swapResult && <div className="text-xs text-accent">{swapResult}</div>}
+              {swapResult && <div className={`text-xs ${swapResult.startsWith('✅') ? 'text-accent' : 'text-red-400'}`}>{swapResult}</div>}
             </div>
           </div>
         </div>
 
-        {/* AI Strategy */}
+        {/* AI Optimizer */}
         <div className="glass-card glow-border p-5">
           <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-2"><Shield size={14} className="text-purple-400" /><span className="text-sm font-semibold text-text-0">AI Yield Optimizer</span></div>
+            <div className="flex items-center gap-2"><Shield size={14} className="text-purple-400" /><span className="text-sm font-semibold text-text-0">{t('aiYieldOptimizer')}</span></div>
             <button onClick={handleOptimize} disabled={optimizing} className="btn-primary !text-[11px] !py-1.5 !px-4 disabled:opacity-50">
-              {optimizing ? 'Analyzing...' : 'Optimize 1000 USDT (Low Risk)'}
+              {optimizing ? t('optimizing') : t('optimize')}
             </button>
           </div>
           {strategy && (
             <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
               <div className="text-sm text-text-0 font-medium mb-2">{strategy.strategy}</div>
-              <div className="flex items-center gap-2 mb-3"><span className="badge badge-green">APY {strategy.expectedApy}%</span></div>
+              <span className="badge badge-green mb-3 inline-flex">APY {strategy.expectedApy}%</span>
               <div className="space-y-2">
                 {strategy.steps.map((s, i) => (
                   <div key={i} className="flex items-center gap-2 text-xs"><span className="badge !text-[9px]">Step {i + 1}</span><span className="text-text-2">{s.description}</span></div>
@@ -122,11 +170,11 @@ export default function DeFi() {
           )}
         </div>
 
-        {/* Protocol filter + Pool list */}
+        {/* Pool list */}
         <div>
           <div className="flex items-center gap-3 mb-3">
             <Droplets size={14} className="text-blue-400" />
-            <span className="text-sm font-semibold text-text-0">All Pools</span>
+            <span className="text-sm font-semibold text-text-0">{t('allPools')}</span>
             <div className="flex gap-2 ml-auto">
               {['all', 'justlend', 'sunswap'].map(f => (
                 <button key={f} onClick={() => setFilter(f)}
@@ -147,7 +195,7 @@ export default function DeFi() {
                 </div>
                 <div className="text-right">
                   <div className="text-brand font-bold text-sm">{pool.apy}%</div>
-                  <div className="text-[10px] text-text-3">${(parseFloat(pool.tvl) / 1e6).toFixed(1)}M</div>
+                  <div className="text-[10px] text-text-3">${(parseFloat(pool.tvl) / 1e6).toFixed(1)}M TVL</div>
                 </div>
                 <span className={`badge !text-[9px] ${RISK_STYLE[pool.riskLevel] ?? ''}`}>{pool.riskLevel}</span>
               </motion.div>
