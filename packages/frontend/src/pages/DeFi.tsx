@@ -100,7 +100,7 @@ export default function DeFi() {
             try {
               // TronLink API: use tronWeb.trx.sendTransaction(to, amount_in_sun)
               // amount=1 SUN = 0.000001 TRX — negligible proof-of-swap tx
-              const SWAP_DEMO_ADDRESS = 'TFp3Ls4mHdzysbX1qxbwXdMzS8mkvhCMx6'
+              const SWAP_DEMO_ADDRESS = 'TVF2Mp9QY7FEGTnr3DBpFLobA6jguHyMvi' // Nile faucet/demo address
               // eslint-disable-next-line @typescript-eslint/no-explicit-any
               const trxObj = tronWeb.trx as unknown as Record<string, unknown>
               // TronLink exposes sendTransaction or send — must bind to preserve 'this' context
