@@ -12,9 +12,19 @@ declare global {
       defaultAddress?: { base58: string; hex: string }
       trx: {
         sign: (tx: unknown) => Promise<unknown>
-        sendRawTransaction: (signedTx: unknown) => Promise<unknown>
+        sendRawTransaction: (signedTx: unknown) => Promise<{ txid?: string }>
         sendTransaction: (to: string, amount: number) => Promise<{ txid?: string; result?: boolean }>
       }
+      transactionBuilder: {
+        sendTrx: (to: string, amount: number, from: string) => Promise<unknown>
+        triggerSmartContract: (
+          contractAddress: string, functionSelector: string,
+          options: Record<string, unknown>, parameters: unknown[], issuerAddress: string
+        ) => Promise<{ transaction: unknown }>
+      }
+    }
+  }
+}
     }
   }
 }
@@ -95,33 +105,26 @@ export default function DeFi() {
         if (data.data?.unsignedTx) {
           const unsignedTx = data.data.unsignedTx as Record<string, unknown>
           if (unsignedTx._demo) {
-            // Real TronLink signing — send tiny TRX transfer as proof-of-swap
-            // 1 SUN = 0.000001 TRX, negligible but creates real on-chain tx
+            // Use transactionBuilder + trx.sign — standard TronLink popup flow
+            // Send 1 SUN (0.000001 TRX) to Nile faucet as proof-of-swap on-chain tx
             try {
-              // TronLink API: use tronWeb.trx.sendTransaction(to, amount_in_sun)
-              // amount=1 SUN = 0.000001 TRX — negligible proof-of-swap tx
-              const SWAP_DEMO_ADDRESS = 'TVF2Mp9QY7FEGTnr3DBpFLobA6jguHyMvi' // Nile faucet/demo address
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              const trxObj = tronWeb.trx as unknown as Record<string, unknown>
-              // TronLink exposes sendTransaction or send — must bind to preserve 'this' context
-              const sendFn = (trxObj['sendTransaction'] ?? trxObj['send']) as ((to: string, amount: number) => Promise<{ txid?: string; result?: boolean; transaction?: { txID?: string } }>) | undefined
-              if (!sendFn) throw new Error('sendTransaction method not found on tronWeb.trx')
-              const receipt = await sendFn.call(tronWeb.trx, SWAP_DEMO_ADDRESS, 1)
-              const txId = receipt.txid ?? receipt.transaction?.txID ?? ''
+              const FAUCET = 'TVF2Mp9QY7FEGTnr3DBpFLobA6jguHyMvi'
+              // Step 1: build unsigned tx (no popup yet)
+              const unsignedTransfer = await tronWeb.transactionBuilder.sendTrx(FAUCET, 1, userAddress)
+              // Step 2: sign — THIS triggers the TronLink popup
+              const signedTx = await tronWeb.trx.sign(unsignedTransfer) as { txID?: string }
+              // Step 3: broadcast
+              const receipt = await tronWeb.trx.sendRawTransaction(signedTx)
+              const txId = signedTx.txID ?? (receipt as Record<string, string>).txid ?? ''
               const scanUrl = `https://nile.tronscan.org/#/transaction/${txId}`
-              if (txId) {
-                setSwapResult(`✅ ${t('swap')}: ${swapAmount} ${swapFrom} → ${data.data.toAmount} ${swapTo} via ${unsignedTx.protocol as string}\n🔗 TronLink signed · <a href="${scanUrl}" target="_blank">${txId.slice(0, 20)}...</a>`)
-              } else {
-                setSwapResult(`✅ ${t('swap')}: ${swapAmount} ${swapFrom} → ${data.data.toAmount} ${swapTo} via ${unsignedTx.protocol as string}\n🔗 TronLink confirmed`)
-              }
+              setSwapResult(`✅ ${t('swap')}: ${swapAmount} ${swapFrom} → ${data.data.toAmount} ${swapTo} via ${unsignedTx.protocol as string}\n🔗 TronLink signed · <a href="${scanUrl}" target="_blank">${txId.slice(0, 20)}...</a>`)
             } catch (signErr) {
-              const errMsg = (signErr as Error).message ?? String(signErr) ?? 'Unknown error'
-              console.error('[Swap] TronLink sign error:', errMsg, signErr)
-              if (errMsg.toLowerCase().includes('cancel') || errMsg.toLowerCase().includes('denied') || errMsg.toLowerCase().includes('declined') || errMsg.toLowerCase().includes('reject')) {
+              const errMsg = (signErr as Error).message ?? String(signErr) ?? 'Unknown'
+              console.error('[Swap] TronLink error:', errMsg, signErr)
+              if (['cancel','denied','declined','reject'].some(k => errMsg.toLowerCase().includes(k))) {
                 setSwapResult(`❌ 用户取消了签名`)
               } else {
-                // Show actual error for debugging
-                setSwapResult(`❌ TronLink error: ${errMsg.slice(0, 80)}`)
+                setSwapResult(`❌ TronLink error: ${errMsg.slice(0, 100)}`)
               }
             }
           } else {
