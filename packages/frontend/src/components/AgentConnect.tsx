@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
+import { createPortal } from 'react-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Plug, Copy, Check, ExternalLink, Terminal, Layers, Code2, X, Zap } from 'lucide-react'
 import axios from 'axios'
@@ -89,8 +90,10 @@ export default function AgentConnect() {
       </button>
 
       {/* Fixed portal dropdown — escapes all stacking contexts */}
-      <AnimatePresence>
-        {open && (
+      {/* Portal: renders directly into document.body, escapes ALL stacking contexts */}
+      {createPortal(
+        <AnimatePresence>
+          {open && (
           <motion.div
             ref={dropRef}
             initial={{ opacity: 0, y: -8, scale: 0.97 }}
@@ -238,7 +241,9 @@ export default function AgentConnect() {
             )}
           </motion.div>
         )}
-      </AnimatePresence>
+      </AnimatePresence>,
+      document.body
+      )}
     </>
   )
 }
