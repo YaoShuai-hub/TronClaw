@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Zap, Plus, Trash2, Clock, Activity, Pause, Play, ChevronDown, ChevronUp } from 'lucide-react'
 import axios from 'axios'
+import { useLang } from '../stores/lang.ts'
+import { SkeletonCard, SkeletonList } from '../components/Skeleton.tsx'
 
 interface Task {
   taskId: string; type: string; status: string
@@ -20,6 +22,7 @@ const TYPE_EMOJI: Record<string, string> = {
 type TaskType = 'auto_swap' | 'scheduled_transfer' | 'whale_alert'
 
 export default function Auto() {
+  const { t } = useLang()
   const [tasks, setTasks] = useState<Task[]>([])
   const [stats, setStats] = useState<Stats | null>(null)
   const [loading, setLoading] = useState(true)
@@ -78,18 +81,18 @@ export default function Auto() {
     <div className="h-full overflow-y-auto">
       <div className="p-6 space-y-5 max-w-5xl mx-auto">
         <div className="animate-fade-in-up">
-          <div className="flex items-center gap-2 mb-1"><span className="text-2xl">⚡</span><h1 className="text-2xl font-bold text-text-0">AutoHarvest</h1></div>
-          <p className="text-sm text-text-3">AI automation — auto-trade, scheduled transfers, whale-follow</p>
+          <div className="flex items-center gap-2 mb-1"><span className="text-2xl">⚡</span><h1 className="text-2xl font-bold text-text-0">{t('autoHarvestTitle')}</h1></div>
+          <p className="text-sm text-text-3">{t('autoHarvestDesc')}</p>
         </div>
 
         {/* Stats */}
-        {stats && (
+        {!stats ? <div className="grid grid-cols-4 gap-4"><SkeletonCard /><SkeletonCard /><SkeletonCard /><SkeletonCard /></div> : (
           <div className="grid grid-cols-4 gap-4 animate-fade-in-up delay-1">
             {[
-              { label: 'Active', value: String(stats.active), color: 'text-accent' },
-              { label: 'Paused', value: String(stats.paused), color: 'text-brand' },
-              { label: 'Completed', value: String(stats.completed), color: 'text-purple-400' },
-              { label: 'Total Triggers', value: String(stats.totalTriggers), color: 'text-blue-400' },
+              { label: t('active'), value: String(stats.active), color: 'text-accent' },
+              { label: t('paused'), value: String(stats.paused), color: 'text-brand' },
+              { label: t('completedLabel'), value: String(stats.completed), color: 'text-purple-400' },
+              { label: t('triggers'), value: String(stats.totalTriggers), color: 'text-blue-400' },
             ].map(s => (
               <div key={s.label} className="glass-card p-4">
                 <div className={`text-xl font-bold ${s.color}`}>{s.value}</div>
@@ -183,12 +186,12 @@ export default function Auto() {
 
         {/* Task list */}
         <div>
-          <h3 className="text-sm font-semibold text-text-0 mb-3">Task Queue ({tasks.length})</h3>
+          <h3 className="text-sm font-semibold text-text-0 mb-3">{t('taskQueue')} ({tasks.length})</h3>
           <div className="space-y-2">
             {loading ? (
-              <div className="glass-card p-8 text-center text-text-3 text-sm">Loading...</div>
+              <SkeletonList rows={4} />
             ) : tasks.length === 0 ? (
-              <div className="glass-card p-8 text-center"><Zap size={32} className="mx-auto mb-2 text-text-3 opacity-20" /><p className="text-sm text-text-3">No tasks yet</p></div>
+              <div className="glass-card p-8 text-center"><Zap size={32} className="mx-auto mb-2 text-text-3 opacity-20" /><p className="text-sm text-text-3">{t('noCallsYet')}</p></div>
             ) : tasks.map((task, i) => (
               <motion.div key={task.taskId} initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.04 }}
                 className="glass-card p-4 flex items-center gap-4">

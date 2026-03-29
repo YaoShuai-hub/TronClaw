@@ -1,10 +1,12 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Search, ExternalLink, ArrowUpRight, ArrowDownLeft, Eye, Waves, Activity } from 'lucide-react'
+import { Search, ExternalLink, ArrowUpRight, ArrowDownLeft, Eye, Waves } from 'lucide-react'
 import axios from 'axios'
+import { useLang } from '../stores/lang.ts'
+import { SkeletonCard, SkeletonList } from '../components/Skeleton.tsx'
 
 const TRONSCAN = 'https://nile.tronscan.org/#'
-function shorten(s: string, n = 6) { return s.length > n * 2 ? `${s.slice(0, n)}...${s.slice(-4)}` : s }
+function shorten(s: string, n = 6) { return s?.length > n * 2 ? `${s.slice(0, n)}...${s.slice(-4)}` : (s ?? '') }
 
 interface AddressInfo {
   address: string; trxBalance: string
@@ -15,6 +17,7 @@ interface Transaction { hash: string; from: string; to: string; value: string; t
 interface WhaleTransfer { hash: string; from: string; to: string; amount: string; tokenSymbol: string; timestamp: number; usdValue: string }
 
 export default function Data() {
+  const { t } = useLang()
   const [query, setQuery] = useState('')
   const [loading, setLoading] = useState(false)
   const [info, setInfo] = useState<AddressInfo | null>(null)
@@ -23,14 +26,12 @@ export default function Data() {
   const [whaleLoading, setWhaleLoading] = useState(true)
   const [error, setError] = useState('')
 
-  // Load whales on mount
   useEffect(() => {
     axios.get('/api/v1/data/whales?token=USDT&hours=24')
-      .then(r => { setWhales(r.data.data); setWhaleLoading(false) })
+      .then(r => { setWhales(r.data.data ?? []); setWhaleLoading(false) })
       .catch(() => setWhaleLoading(false))
   }, [])
 
-  // WS for live whale alerts
   useEffect(() => {
     const ws = new WebSocket(`ws://${window.location.host}/ws`)
     ws.onmessage = (evt) => {
@@ -58,60 +59,65 @@ export default function Data() {
   return (
     <div className="h-full overflow-y-auto">
       <div className="p-6 space-y-5 max-w-6xl mx-auto">
-        <div className="animate-fade-in-up">
-          <div className="flex items-center gap-2 mb-1"><span className="text-2xl">🔍</span><h1 className="text-2xl font-bold text-text-0">ChainEye</h1></div>
-          <p className="text-sm text-text-3">AI on-chain analytics — address profiling, whale tracking, data intelligence</p>
+        {/* Header */}
+        <div>
+          <div className="flex items-center gap-2 mb-1"><span className="text-2xl">🔍</span><h1 className="text-2xl font-bold text-text-0">{t('chainEyeTitle')}</h1></div>
+          <p className="text-sm text-text-3">{t('chainEyeDesc')}</p>
         </div>
 
         {/* Search */}
-        <div className="flex gap-3 animate-fade-in-up delay-1">
-          <div className="flex-1 flex items-center gap-2 glass-card px-4 !rounded-xl">
+        <div className="flex gap-3">
+          <div className="flex-1 flex items-center gap-2 glass-card px-4 !rounded-xl focus-within:border-brand/30 transition-colors">
             <Search size={15} className="text-text-3" />
             <input value={query} onChange={e => setQuery(e.target.value)} onKeyDown={e => e.key === 'Enter' && search()}
-              placeholder="Address / Tx Hash / Token name..." className="flex-1 bg-transparent text-sm text-text-0 placeholder-text-3 outline-none py-3 font-mono" />
+              placeholder={t('addressOrHash')}
+              className="flex-1 bg-transparent text-sm text-text-0 placeholder-text-3 outline-none py-3 font-mono" />
           </div>
           <button onClick={search} disabled={loading || !query.trim()} className="btn-primary !py-2.5 disabled:opacity-40">
-            {loading ? 'Searching...' : 'Analyze'}
+            {loading ? t('searching') : t('analyze')}
           </button>
         </div>
 
         {error && <div className="glass-card p-3 border-red-400/20 text-red-400 text-sm">{error}</div>}
 
         <div className="grid lg:grid-cols-5 gap-5">
-          {/* Left: search results (3 cols) */}
+          {/* Left: results (3 cols) */}
           <div className="lg:col-span-3 space-y-4">
-            {info && (
+            {loading && <SkeletonList rows={4} />}
+            {!loading && info && (
               <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
-                {/* Address card */}
                 <div className="glass-card p-5">
                   <div className="flex items-center gap-2 mb-2">
                     <Eye size={14} className="text-purple-400" />
-                    <span className="text-sm font-semibold text-text-0">Address Profile</span>
-                    {info.tags.map(t => <span key={t} className="badge badge-purple !text-[9px]">{t}</span>)}
+                    <span className="text-sm font-semibold text-text-0">{t('addressProfile')}</span>
+                    {info.tags.map(tg => <span key={tg} className="badge badge-purple !text-[9px]">{tg}</span>)}
                   </div>
-                  <a href={`${TRONSCAN}/address/${info.address}`} target="_blank" className="text-xs font-mono text-text-2 hover:text-brand flex items-center gap-1 mb-4 break-all">
+                  <a href={`${TRONSCAN}/address/${info.address}`} target="_blank"
+                    className="text-xs font-mono text-text-2 hover:text-brand flex items-center gap-1 mb-4 break-all">
                     {info.address} <ExternalLink size={10} />
                   </a>
                   <div className="grid grid-cols-3 gap-4 mb-4">
-                    <div><div className="text-[10px] text-text-3 uppercase mb-0.5">TRX Balance</div><div className="text-lg font-bold text-text-0">{parseFloat(info.trxBalance).toLocaleString()}</div></div>
-                    <div><div className="text-[10px] text-text-3 uppercase mb-0.5">Transactions</div><div className="text-lg font-bold text-text-0">{info.txCount.toLocaleString()}</div></div>
-                    <div><div className="text-[10px] text-text-3 uppercase mb-0.5">First Active</div><div className="text-lg font-bold text-text-0">{info.firstTxDate ?? 'N/A'}</div></div>
+                    <div><div className="text-[10px] text-text-3 mb-0.5">{t('trxBalance')}</div><div className="text-lg font-bold text-text-0">{parseFloat(info.trxBalance).toLocaleString()}</div></div>
+                    <div><div className="text-[10px] text-text-3 mb-0.5">{t('txCount')}</div><div className="text-lg font-bold text-text-0">{info.txCount.toLocaleString()}</div></div>
+                    <div><div className="text-[10px] text-text-3 mb-0.5">{t('firstActive')}</div><div className="text-lg font-bold text-text-0">{info.firstTxDate ?? 'N/A'}</div></div>
                   </div>
                   {info.tokenHoldings.length > 0 && (
                     <div className="flex flex-wrap gap-2">
-                      {info.tokenHoldings.map(t => (
-                        <div key={t.symbol} className="badge"><span className="text-text-0 font-medium">{t.symbol}</span><span className="text-text-3">{parseFloat(t.balance).toLocaleString()}</span></div>
+                      {info.tokenHoldings.map(tk => (
+                        <div key={tk.symbol} className="badge">
+                          <span className="text-text-0 font-medium">{tk.symbol}</span>
+                          <span className="text-text-3">{parseFloat(tk.balance).toLocaleString()}</span>
+                        </div>
                       ))}
                     </div>
                   )}
                 </div>
-                {/* Tx history */}
                 {txs.length > 0 && (
                   <div className="glass-card p-5">
-                    <div className="text-sm font-semibold text-text-0 mb-3">Recent Transactions</div>
+                    <div className="text-sm font-semibold text-text-0 mb-3">{t('recentTransactions')}</div>
                     <div className="space-y-2">
                       {txs.map((tx, i) => {
-                        const isSend = tx.from.toLowerCase() === query.trim().toLowerCase()
+                        const isSend = tx.from?.toLowerCase() === query.trim().toLowerCase()
                         return (
                           <motion.div key={`${tx.hash}-${i}`} initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.04 }}
                             className="flex items-center gap-3 py-2 px-3 rounded-xl bg-bg-3/50 border border-white/[0.04] text-xs">
@@ -130,8 +136,11 @@ export default function Data() {
                 )}
               </motion.div>
             )}
-            {!info && !error && !loading && (
-              <div className="glass-card p-12 text-center"><Search size={40} className="mx-auto mb-3 text-text-3 opacity-15" /><p className="text-sm text-text-3">Enter a TRON address or tx hash to analyze</p></div>
+            {!loading && !info && !error && (
+              <div className="glass-card p-12 text-center">
+                <Search size={40} className="mx-auto mb-3 text-text-3 opacity-15" />
+                <p className="text-sm text-text-3">{t('addressOrHash').slice(0, 30)}...</p>
+              </div>
             )}
           </div>
 
@@ -140,31 +149,36 @@ export default function Data() {
             <div className="glass-card p-5 sticky top-6">
               <div className="flex items-center gap-2 mb-4">
                 <Waves size={14} className="text-brand" />
-                <span className="text-sm font-semibold text-text-0">🐋 Whale Monitor</span>
-                <span className="badge badge-orange !text-[9px] ml-auto">24h</span>
+                <span className="text-sm font-semibold text-text-0">{t('whaleMonitor')}</span>
+                <span className="badge badge-orange !text-[9px] ml-auto">USDT 24h</span>
               </div>
-              <div className="space-y-2 max-h-[400px] overflow-y-auto">
-                <AnimatePresence mode="popLayout">
-                  {whaleLoading ? (
-                    <div className="text-center py-8 text-text-3 text-xs">Loading whale data...</div>
-                  ) : whales.length === 0 ? (
-                    <div className="text-center py-8 text-text-3 text-xs">No whale transfers in last 24h</div>
-                  ) : whales.map((w, i) => (
-                    <motion.div key={`${w.hash}-${i}`} layout initial={{ opacity: 0, x: 12 }} animate={{ opacity: 1, x: 0 }}
-                      className="p-2.5 rounded-xl bg-bg-3/50 border border-white/[0.04] text-[11px]">
-                      <div className="flex items-center justify-between mb-1">
-                        <a href={`${TRONSCAN}/transaction/${w.hash}`} target="_blank" className="font-mono text-text-2 hover:text-brand">
-                          {shorten(w.hash, 5)}
-                        </a>
-                        <span className="font-bold text-brand">{parseFloat(w.amount).toLocaleString()} {w.tokenSymbol}</span>
-                      </div>
-                      <div className="flex items-center gap-1 text-text-3">
-                        <span className="font-mono">{shorten(w.from, 4)}</span> → <span className="font-mono">{shorten(w.to, 4)}</span>
-                      </div>
-                    </motion.div>
-                  ))}
-                </AnimatePresence>
-              </div>
+              {whaleLoading ? (
+                <SkeletonList rows={5} />
+              ) : (
+                <div className="space-y-2 max-h-[420px] overflow-y-auto">
+                  <AnimatePresence mode="popLayout">
+                    {whales.length === 0 ? (
+                      <div className="text-center py-8 text-text-3 text-xs">{t('noWhales')}</div>
+                    ) : whales.map((w, i) => (
+                      <motion.div key={`${w.hash}-${i}`} layout initial={{ opacity: 0, x: 12 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0 }}
+                        className="p-2.5 rounded-xl bg-bg-3/50 border border-white/[0.04] text-[11px]">
+                        <div className="flex items-center justify-between mb-1">
+                          <a href={`${TRONSCAN}/transaction/${w.hash}`} target="_blank" className="font-mono text-text-2 hover:text-brand">
+                            {shorten(w.hash, 5)}
+                          </a>
+                          <span className="font-bold text-brand">{parseFloat(w.amount).toLocaleString()} {w.tokenSymbol}</span>
+                        </div>
+                        <div className="flex items-center gap-1 text-text-3">
+                          <a href={`${TRONSCAN}/address/${w.from}`} target="_blank" className="font-mono hover:text-brand">{shorten(w.from, 5)}</a>
+                          <span>→</span>
+                          <a href={`${TRONSCAN}/address/${w.to}`} target="_blank" className="font-mono hover:text-brand">{shorten(w.to, 5)}</a>
+                        </div>
+                        <div className="text-text-3 mt-0.5">{new Date(w.timestamp).toLocaleTimeString()}</div>
+                      </motion.div>
+                    ))}
+                  </AnimatePresence>
+                </div>
+              )}
             </div>
           </div>
         </div>

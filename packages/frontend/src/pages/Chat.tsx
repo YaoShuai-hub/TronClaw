@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { Send, Loader2, Zap, Bot, User, ExternalLink } from 'lucide-react'
 import axios from 'axios'
 import { useWallet } from '../stores/wallet.ts'
+import { useLang } from '../stores/lang.ts'
 
 interface Message {
   id: string
@@ -91,6 +92,7 @@ export default function Chat() {
   const bottomRef = useRef<HTMLDivElement>(null)
   const [latestId, setLatestId] = useState('')
   const { address: walletAddress } = useWallet()
+  const { t } = useLang()
   const activeAddress = walletAddress ?? FALLBACK_ADDRESS
 
   useEffect(() => {
@@ -192,7 +194,7 @@ export default function Chat() {
             <div className="px-4 py-3 rounded-2xl bg-bg-2 border border-white/[0.06]">
               <div className="flex items-center gap-2 text-xs text-text-3">
                 <Loader2 size={14} className="text-brand animate-spin" />
-                Calling TRON tools...
+                {t("agentCalls")}...
               </div>
             </div>
           </motion.div>
@@ -223,7 +225,7 @@ export default function Chat() {
             value={input}
             onChange={e => setInput(e.target.value)}
             onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(input) } }}
-            placeholder="Ask anything about TRON..."
+            placeholder={t("askAnything")}
             rows={1}
             className="flex-1 bg-transparent text-sm text-text-0 placeholder-text-3 resize-none outline-none px-2 py-1.5 max-h-28"
           />
