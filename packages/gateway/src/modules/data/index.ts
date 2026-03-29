@@ -4,7 +4,6 @@
  */
 import axios from 'axios'
 import { getNetwork, isMockMode } from '../../tron/client.js'
-import { getTrxBalance, getTrc20Balance } from '../../tron/contracts.js'
 import { TRONGRID_BASE, TOKEN_CONTRACTS, WHALE_THRESHOLD } from '@tronclaw/shared'
 import { getLiveNetworkStats } from '../../utils/prices.js'
 import type {
@@ -26,6 +25,16 @@ function tronGridClient() {
     baseURL,
     headers: apiKey ? { 'TRON-PRO-API-KEY': apiKey } : {},
     timeout: 10000,
+  })
+}
+
+// Mainnet client for address analysis — real data regardless of current network
+function mainnetClient() {
+  const apiKey = process.env.TRONGRID_API_KEY
+  return axios.create({
+    baseURL: 'https://api.trongrid.io',
+    headers: apiKey ? { 'TRON-PRO-API-KEY': apiKey } : {},
+    timeout: 8000,
   })
 }
 
@@ -70,61 +79,93 @@ const MOCK_WHALES: WhaleTransfer[] = Array.from({ length: 3 }, (_, i) => ({
 export async function analyzeAddress(address: string): Promise<AddressInfo> {
   if (isMockMode()) return { ...MOCK_ADDRESS_INFO, address }
 
-  const client = tronGridClient()
-  const network = getNetwork()
-
-  // TRX balance
-  const trxBalance = await getTrxBalance(address)
-
-  // Account info from TronGrid
-  const { data } = await client.get(`/v1/accounts/${address}`)
-  const account = data?.data?.[0] ?? {}
-
-  // Token holdings
-  // TronGrid returns trc20 as [{contractAddress: balance}, ...] without symbol
-  // Map known contracts to symbols
-  const KNOWN_CONTRACTS: Record<string, { symbol: string; name: string; decimals: number }> = {
-    'TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t': { symbol: 'USDT', name: 'Tether USD', decimals: 6 },
-    'TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf': { symbol: 'USDT', name: 'Tether USD (Nile)', decimals: 6 },
-    'TPYmHEhy5n8TCEfYGqW2rPxsghSfzghPDn': { symbol: 'USDD', name: 'Decentralized USD', decimals: 18 },
-    'TGjgkFPfBhMkXdB2E8bBHRQLQ11Z4BBgKu': { symbol: 'USDD', name: 'Decentralized USD (Nile)', decimals: 18 },
-    'TAFjULxiVgT4qWk6UZwjqwZXTSaGaqnVp4': { symbol: 'BTT', name: 'BitTorrent', decimals: 18 },
-    'TLa2f6VPqDgRE67v1736s7bJ8Ray5wYjU7': { symbol: 'WIN', name: 'WINkLink', decimals: 6 },
-    'TCFLL5dx5ZJdKnWuesXxi1VPwjLVmWZkR9': { symbol: 'JST', name: 'JUST', decimals: 18 },
+  const KNOWN_CONTRACTS: Record<string, { symbol: string; name: string; decimals: number; priceUsd: number }> = {
+    // Mainnet contracts
+    'TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t': { symbol: 'USDT', name: 'Tether USD', decimals: 6, priceUsd: 1.0 },
+    'TPYmHEhy5n8TCEfYGqW2rPxsghSfzghPDn': { symbol: 'USDD', name: 'Decentralized USD', decimals: 18, priceUsd: 1.0 },
+    'TAFjULxiVgT4qWk6UZwjqwZXTSaGaqnVp4': { symbol: 'BTT', name: 'BitTorrent', decimals: 18, priceUsd: 0.0000008 },
+    'TLa2f6VPqDgRE67v1736s7bJ8Ray5wYjU7': { symbol: 'WIN', name: 'WINkLink', decimals: 6, priceUsd: 0.00007 },
+    'TCFLL5dx5ZJdKnWuesXxi1VPwjLVmWZkR9': { symbol: 'JST', name: 'JUST', decimals: 18, priceUsd: 0.025 },
+    'TF17BgPaZYbz8oxbjhriubPDsA7ArKoLX3': { symbol: 'SUN', name: 'SUN Token', decimals: 18, priceUsd: 0.012 },
+    'TKfjV9RNKJJCqPvBtK8L7Knykh7DNWvnYt': { symbol: 'USDJ', name: 'JUST Stablecoin', decimals: 18, priceUsd: 1.0 },
+    // Nile testnet contracts
+    'TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf': { symbol: 'USDT', name: 'Tether USD (Nile)', decimals: 6, priceUsd: 1.0 },
+    'TGjgkFPfBhMkXdB2E8bBHRQLQ11Z4BBgKu': { symbol: 'USDD', name: 'Decentralized USD (Nile)', decimals: 18, priceUsd: 1.0 },
   }
-  const tokenHoldings = (account.trc20 ?? []).map((t: Record<string, string>) => {
-    const contractAddress = Object.keys(t)[0]
-    const balance = Object.values(t)[0]
-    const known = KNOWN_CONTRACTS[contractAddress]
-    const decimals = known?.decimals ?? 6
-    const readableBalance = known
-      ? (Number(BigInt(balance)) / 10 ** decimals).toFixed(decimals === 18 ? 4 : 2)
-      : balance
-    return {
-      contractAddress,
-      symbol: known?.symbol ?? contractAddress.slice(0, 6) + '...',
-      name: known?.name ?? 'Unknown Token',
-      balance: readableBalance,
-      decimals,
+
+  // Get TRX price for USD value calculation
+  let trxPrice = 0.121
+  try {
+    const { getTrxPrice } = await import('../../utils/prices.js')
+    const p = await getTrxPrice()
+    trxPrice = parseFloat(p.price)
+  } catch {}
+
+  // Try mainnet first, fallback to current network (Nile) if address has no mainnet activity
+  const clients = [mainnetClient(), tronGridClient()]
+  const clientNames = ['mainnet', 'nile']
+
+  for (let i = 0; i < clients.length; i++) {
+    const client = clients[i]
+    try {
+      const balRes = await client.get(`/v1/accounts/${address}`)
+      const account = balRes.data?.data?.[0] ?? {}
+
+      // Skip if account has no activity on this network
+      if (!account.balance && !account.trc20?.length && !account.create_time) {
+        if (i === 0) continue // try next network
+        break
+      }
+
+      const trxBalance = account.balance != null
+        ? (Number(account.balance) / 1_000_000).toFixed(6)
+        : '0'
+
+      const tokenHoldings = (account.trc20 ?? [])
+        .map((t: Record<string, string>) => {
+          const contractAddress = Object.keys(t)[0]
+          const rawBalance = Object.values(t)[0]
+          const known = KNOWN_CONTRACTS[contractAddress]
+          if (!known) return null
+          let readableBalance: string
+          try {
+            readableBalance = (Number(BigInt(rawBalance)) / 10 ** known.decimals).toFixed(known.decimals >= 18 ? 4 : 2)
+          } catch { readableBalance = '0' }
+          const usdValue = parseFloat(readableBalance) * known.priceUsd
+          if (usdValue < 100) return null // Only show holdings ≥ $100
+          return { contractAddress, symbol: known.symbol, name: known.name, balance: readableBalance, decimals: known.decimals }
+        })
+        .filter(Boolean) as AddressInfo['tokenHoldings']
+
+      let txCount = 0
+      try {
+        const txCountRes = await client.get(`/v1/accounts/${address}/transactions`, {
+          params: { limit: 1, only_confirmed: true },
+        })
+        txCount = txCountRes.data?.meta?.total ?? txCountRes.data?.meta?.page_size ?? 0
+      } catch {}
+
+      const trxUsdValue = parseFloat(trxBalance) * trxPrice
+      console.log(`[Data] analyzeAddress: ${address} on ${clientNames[i]}, TRX=${trxBalance}, tokens=${tokenHoldings.length}`)
+
+      return {
+        address,
+        trxBalance,
+        tokenHoldings,
+        txCount,
+        firstTxDate: account.create_time
+          ? new Date(account.create_time).toISOString().split('T')[0]
+          : null,
+        tags: trxUsdValue > 100_000 ? ['whale'] : trxUsdValue > 10_000 ? ['large_holder'] : [],
+      }
+    } catch (e) {
+      if (i === clients.length - 1) {
+        console.warn('[Data] analyzeAddress error:', (e as Error).message)
+      }
     }
-  })
-
-  // Transaction count
-  const txCountRes = await client.get(`/v1/accounts/${address}/transactions`, {
-    params: { limit: 1, only_confirmed: true },
-  })
-  const txCount = txCountRes.data?.meta?.page_size ?? 0
-
-  return {
-    address,
-    trxBalance,
-    tokenHoldings,
-    txCount,
-    firstTxDate: account.create_time
-      ? new Date(account.create_time).toISOString().split('T')[0]
-      : null,
-    tags: [],
   }
+
+  return { address, trxBalance: '0', tokenHoldings: [], txCount: 0, firstTxDate: null, tags: [] }
 }
 
 // ─── Transaction History ──────────────────────────────────────────────────────
@@ -135,21 +176,75 @@ export async function getTxHistory(
 ): Promise<Transaction[]> {
   if (isMockMode()) return MOCK_TRANSACTIONS.slice(0, limit)
 
-  const client = tronGridClient()
-  const { data } = await client.get(`/v1/accounts/${address}/transactions/trc20`, {
-    params: { limit, order_by: 'block_timestamp,desc' },
-  })
+  const MAX_UINT256 = BigInt('115792089237316195423570985008687907853269984665640564039457584007913129639935')
+  // Try mainnet first, fallback to Nile
+  const clients = [mainnetClient(), tronGridClient()]
 
-  return (data?.data ?? []).map((tx: Record<string, unknown>) => ({
-    hash: tx.transaction_id as string,
-    from: (tx.from as string),
-    to: (tx.to as string),
-    value: (tx.value as string),
-    token: (tx.token_info as Record<string, string>)?.address ?? '',
-    tokenSymbol: (tx.token_info as Record<string, string>)?.symbol ?? '?',
-    timestamp: tx.block_timestamp as number,
-    confirmed: true,
-  }))
+  for (const client of clients) {
+    try {
+      const { data } = await client.get(`/v1/accounts/${address}/transactions/trc20`, {
+        params: { limit: limit * 3, order_by: 'block_timestamp,desc' }, // fetch more to allow filtering
+      })
+
+      const txs = (data?.data ?? []) as Array<Record<string, unknown>>
+
+      if (txs.length > 0) {
+        const result = txs
+          .filter(tx => {
+            // Filter out approve(max) calls — value equals max uint256
+            try { return BigInt(String(tx.value ?? '0')) !== MAX_UINT256 } catch { return true }
+          })
+          .slice(0, limit)
+          .map((tx: Record<string, unknown>) => {
+            const rawValue = String(tx.value ?? '0')
+            const tokenInfo = (tx.token_info as Record<string, unknown>) ?? {}
+            const decimals = (tokenInfo.decimals as number) ?? 6
+            let readableValue: string
+            try {
+              readableValue = (Number(BigInt(rawValue)) / 10 ** decimals).toFixed(decimals >= 18 ? 4 : 2)
+            } catch { readableValue = rawValue }
+            return {
+              hash: tx.transaction_id as string,
+              from: tx.from as string,
+              to: tx.to as string,
+              value: readableValue,
+              token: (tokenInfo.address as string) ?? '',
+              tokenSymbol: (tokenInfo.symbol as string) ?? '?',
+              timestamp: tx.block_timestamp as number,
+              confirmed: true,
+            }
+          })
+        if (result.length > 0) return result
+      }
+
+      // Try native TRX transactions if no TRC20 found
+      const nativeRes = await client.get(`/v1/accounts/${address}/transactions`, {
+        params: { limit, order_by: 'block_timestamp,desc', only_confirmed: true },
+      })
+      const nativeTxs = (nativeRes.data?.data ?? []) as Array<Record<string, unknown>>
+      if (nativeTxs.length > 0) {
+        return nativeTxs.slice(0, limit).map((tx: Record<string, unknown>) => {
+          const rawData = (tx.raw_data as Record<string, unknown>) ?? {}
+          const contract = ((rawData.contract as unknown[])?.[0] as Record<string, unknown>) ?? {}
+          const value = ((contract.parameter as Record<string, unknown>)?.value as Record<string, unknown>) ?? {}
+          return {
+            hash: (tx.txID as string) ?? '',
+            from: address,
+            to: (value.to_address as string) ?? '',
+            value: value.amount != null ? (Number(value.amount) / 1_000_000).toFixed(6) : '0',
+            token: 'TRX',
+            tokenSymbol: 'TRX',
+            timestamp: (tx.block_timestamp as number) ?? Date.now(),
+            confirmed: true,
+          }
+        })
+      }
+      // No data on this network, try next
+    } catch (e) {
+      console.warn('[Data] getTxHistory error:', (e as Error).message)
+    }
+  }
+  return []
 }
 
 // ─── Known Whale Addresses (TRON mainnet exchanges + protocols) ──────────────

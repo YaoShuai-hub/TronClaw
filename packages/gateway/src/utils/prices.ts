@@ -12,7 +12,10 @@ import { TRONGRID_BASE } from '@tronclaw/shared'
 // ─── Cache to avoid rate limiting ────────────────────────────────────────────
 
 const cache: Map<string, { data: unknown; ts: number }> = new Map()
-const CACHE_TTL = 30_000 // 30 seconds
+const CACHE_TTL = 5 * 60 * 1000 // 5 minutes
+
+// Keep last successful price to avoid fallback to stale hardcoded values
+const lastSuccessful: Map<string, unknown> = new Map()
 
 function getCached<T>(key: string): T | null {
   const entry = cache.get(key)
@@ -44,8 +47,12 @@ export async function getTrxPrice(): Promise<{
       change24h: trx?.usd_24h_change?.toFixed(2) ?? '0.00',
     }
     setCached('trx_price', result)
+    lastSuccessful.set('trx_price', result)
     return result
   } catch {
+    // Use last successful price if available, don't fall back to stale hardcoded value
+    const lastPrice = lastSuccessful.get('trx_price') as typeof result | undefined
+    if (lastPrice) return lastPrice
     return { price: '0.121', marketCap: '$10.8B', volume24h: '$1.05B', change24h: '0.00' }
   }
 }
