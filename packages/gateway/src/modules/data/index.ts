@@ -101,8 +101,8 @@ export async function analyzeAddress(address: string): Promise<AddressInfo> {
     trxPrice = parseFloat(p.price)
   } catch {}
 
-  // Try mainnet first, fallback to current network (Nile) if address has no mainnet activity
-  const clients = [mainnetClient(), tronGridClient()]
+  // Try Nile first (user network), fallback to mainnet for well-known addresses
+  const clients = [tronGridClient(), mainnetClient()]
   const clientNames = ['mainnet', 'nile']
 
   for (let i = 0; i < clients.length; i++) {
@@ -121,19 +121,55 @@ export async function analyzeAddress(address: string): Promise<AddressInfo> {
         ? (Number(account.balance) / 1_000_000).toFixed(6)
         : '0'
 
+      // Dynamically discover token info from recent transactions
+      const dynamicContracts: Record<string, { symbol: string; name: string; decimals: number; priceUsd: number }> = {}
+      try {
+        const txRes = await client.get(`/v1/accounts/${address}/transactions/trc20`, {
+          params: { limit: 50, order_by: 'block_timestamp,desc' },
+        })
+        for (const tx of (txRes.data?.data ?? []) as Array<Record<string, unknown>>) {
+          const ti = (tx.token_info as Record<string, unknown>) ?? {}
+          const addr = ti.address as string
+          if (addr && !dynamicContracts[addr]) {
+            dynamicContracts[addr] = {
+              symbol: (ti.symbol as string) ?? 'UNK',
+              name: (ti.name as string) ?? 'Unknown',
+              decimals: (ti.decimals as number) ?? 6,
+              priceUsd: 0,
+            }
+          }
+        }
+      } catch {}
+
+      // Merge: KNOWN_CONTRACTS takes priority, then dynamic
+      const allContracts = { ...dynamicContracts, ...KNOWN_CONTRACTS }
+
       const tokenHoldings = (account.trc20 ?? [])
         .map((t: Record<string, string>) => {
           const contractAddress = Object.keys(t)[0]
           const rawBalance = Object.values(t)[0]
-          const known = KNOWN_CONTRACTS[contractAddress]
-          if (!known) return null
+          const known = allContracts[contractAddress]
+          // Determine decimals: known contract uses its decimals, unknown defaults to 18 (most Nile test tokens)
+          const decimals = known?.decimals ?? 18
           let readableBalance: string
           try {
-            readableBalance = (Number(BigInt(rawBalance)) / 10 ** known.decimals).toFixed(known.decimals >= 18 ? 4 : 2)
+            // Use string arithmetic to avoid float precision loss for large numbers
+            const raw = BigInt(rawBalance)
+            const divisor = BigInt(10 ** decimals)
+            const whole = raw / divisor
+            const frac = raw % divisor
+            const fracStr = frac.toString().padStart(decimals, '0').slice(0, decimals >= 18 ? 4 : 2)
+            readableBalance = `${whole.toString()}.${fracStr}`
           } catch { readableBalance = '0' }
-          return { contractAddress, symbol: known.symbol, name: known.name, balance: readableBalance, decimals: known.decimals }
+          return {
+            contractAddress,
+            symbol: known?.symbol ?? contractAddress.slice(0, 8) + '...',
+            name: known?.name ?? 'Unknown Token',
+            balance: readableBalance,
+            decimals,
+          }
         })
-        .filter(Boolean) as AddressInfo['tokenHoldings']
+        .filter((h): h is NonNullable<typeof h> => !!h && parseFloat(h.balance) > 0) as AddressInfo['tokenHoldings']
 
       let txCount = 0
       try {
@@ -146,9 +182,21 @@ export async function analyzeAddress(address: string): Promise<AddressInfo> {
       const trxUsdValue = parseFloat(trxBalance) * trxPrice
       console.log(`[Data] analyzeAddress: ${address} on ${clientNames[i]}, TRX=${trxBalance}, tokens=${tokenHoldings.length}`)
 
-      // Sort by balance desc, keep top 10
+      // Sort: known tokens first by USD value, unknown tokens last
+      const STABLE_PRICE: Record<string, number> = { 'USDT': 1, 'USDD': 1, 'USDJ': 1, 'TRX': trxPrice, 'BTT': 0.0000008, 'WIN': 0.00007, 'JST': 0.025, 'SUN': 0.012 }
       const sortedHoldings = tokenHoldings
-        .sort((a, b) => parseFloat(b.balance) - parseFloat(a.balance))
+        .sort((a, b) => {
+          const priceA = STABLE_PRICE[a.symbol] ?? 0
+          const priceB = STABLE_PRICE[b.symbol] ?? 0
+          const valA = parseFloat(a.balance) * priceA
+          const valB = parseFloat(b.balance) * priceB
+          // Unknown tokens (symbol ends with ...) go to bottom
+          const isUnknownA = a.symbol.endsWith('...')
+          const isUnknownB = b.symbol.endsWith('...')
+          if (isUnknownA && !isUnknownB) return 1
+          if (!isUnknownA && isUnknownB) return -1
+          return valB - valA
+        })
         .slice(0, 10)
 
       return {
@@ -208,6 +256,26 @@ export async function getTxHistory(
       })
   }
 
+  function parseNativeTxList(txs: Array<Record<string, unknown>>, addr: string, lim: number) {
+    return txs.slice(0, lim).map((tx: Record<string, unknown>) => {
+      const rawData = (tx.raw_data as Record<string, unknown>) ?? {}
+      const contract = ((rawData.contract as unknown[])?.[0] as Record<string, unknown>) ?? {}
+      const value = ((contract.parameter as Record<string, unknown>)?.value as Record<string, unknown>) ?? {}
+      const amount = value.amount != null ? (Number(value.amount) / 1_000_000).toFixed(6) : '0'
+      const toHex = (value.to_address as string) ?? ''
+      return {
+        hash: (tx.txID as string) ?? '',
+        from: addr,
+        to: toHex,
+        value: amount,
+        token: 'TRX',
+        tokenSymbol: 'TRX',
+        timestamp: (tx.block_timestamp as number) ?? Date.now(),
+        confirmed: true,
+      }
+    }).filter(tx => parseFloat(tx.value) > 0)
+  }
+
   // Try Nile first (user's network), then mainnet as fallback
   const clients: Array<{ client: ReturnType<typeof tronGridClient>, name: string }> = [
     { client: tronGridClient(), name: 'nile' },
@@ -216,14 +284,36 @@ export async function getTxHistory(
 
   for (const { client, name } of clients) {
     try {
-      const { data } = await client.get(`/v1/accounts/${address}/transactions/trc20`, {
-        params: { limit: Math.min(limit * 3, 200), order_by: 'block_timestamp,desc' },
+      // Fetch both TRC20 and native TRX transfers in parallel
+      const [trc20Res, nativeRes] = await Promise.allSettled([
+        client.get(`/v1/accounts/${address}/transactions/trc20`, {
+          params: { limit: Math.min(limit * 2, 200), order_by: 'block_timestamp,desc' },
+        }),
+        client.get(`/v1/accounts/${address}/transactions`, {
+          params: { limit: Math.min(limit * 2, 200), order_by: 'block_timestamp,desc', only_confirmed: true },
+        }),
+      ])
+
+      const trc20Txs = trc20Res.status === 'fulfilled' ? (trc20Res.value.data?.data ?? []) as Array<Record<string, unknown>> : []
+      const nativeTxs = nativeRes.status === 'fulfilled' ? (nativeRes.value.data?.data ?? []) as Array<Record<string, unknown>> : []
+
+      // Parse and filter native to only TransferContract (TRX sends/receives)
+      const nativeTransfers = nativeTxs.filter((tx: Record<string, unknown>) => {
+        const contract = ((tx.raw_data as Record<string, unknown>)?.contract as unknown[])?.[0] as Record<string, unknown>
+        return contract?.type === 'TransferContract'
       })
-      const txs = (data?.data ?? []) as Array<Record<string, unknown>>
-      const result = parseTxList(txs, limit)
-      if (result.length > 0) {
-        console.log(`[Data] getTxHistory: ${address} found ${result.length} txs on ${name}`)
-        return result
+
+      const trc20Results = parseTxList(trc20Txs, limit)
+      const nativeResults = parseNativeTxList(nativeTransfers, address, limit)
+
+      // Merge and sort by timestamp desc
+      const combined = [...trc20Results, ...nativeResults]
+        .sort((a, b) => b.timestamp - a.timestamp)
+        .slice(0, limit)
+
+      if (combined.length > 0) {
+        console.log(`[Data] getTxHistory: ${address} found ${combined.length} txs on ${name} (${trc20Results.length} TRC20 + ${nativeResults.length} TRX)`)
+        return combined
       }
     } catch (e) {
       console.warn(`[Data] getTxHistory ${name} error:`, (e as Error).message)
