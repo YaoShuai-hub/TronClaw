@@ -25,9 +25,6 @@ declare global {
     }
   }
 }
-    }
-  }
-}
 
 interface Pool { protocol: string; name: string; token0: string; token1?: string; apy: string; tvl: string; riskLevel: string }
 interface SwapRoute { protocol: string; path: string[]; expectedOut: string; priceImpact: string; fee: string; gasCost: string; isOptimal: boolean }
