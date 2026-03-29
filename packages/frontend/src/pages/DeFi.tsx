@@ -105,23 +105,34 @@ export default function DeFi() {
         if (data.data?.unsignedTx) {
           const unsignedTx = data.data.unsignedTx as Record<string, unknown>
           if (unsignedTx._demo) {
-            // Use transactionBuilder + trx.sign — standard TronLink popup flow
-            // Send 1 SUN (0.000001 TRX) to Nile faucet as proof-of-swap on-chain tx
+            // Nile testnet has no SunSwap DEX — simulate swap via TRC20 transfer
+            // This triggers real TronLink popup, produces real on-chain txHash
             try {
-              const FAUCET = 'TVF2Mp9QY7FEGTnr3DBpFLobA6jguHyMvi'
-              // Step 1: build unsigned tx (no popup yet)
-              const unsignedTransfer = await tronWeb.transactionBuilder.sendTrx(FAUCET, 1, userAddress)
-              // Step 2: sign — THIS triggers the TronLink popup
-              const signedTx = await tronWeb.trx.sign(unsignedTransfer) as { txID?: string }
-              // Step 3: broadcast
-              const receipt = await tronWeb.trx.sendRawTransaction(signedTx)
-              const txId = signedTx.txID ?? (receipt as Record<string, string>).txid ?? ''
+              // Call USDT.transfer(self, 1) — 1 unit = 0.000001 USDT (1e-6 decimals)
+              // This shows TronLink popup and confirms TronClaw can sign TRON transactions
+              const NILE_USDT = 'TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf'
+              const transferParam = [{
+                type: 'address', value: userAddress,  // recipient = self (demo swap)
+              }, {
+                type: 'uint256', value: 1,  // 1 smallest unit = 0.000001 USDT
+              }]
+              const { transaction } = await tronWeb.transactionBuilder.triggerSmartContract(
+                NILE_USDT,
+                'transfer(address,uint256)',
+                { feeLimit: 10_000_000 },
+                transferParam,
+                userAddress
+              )
+              // This triggers TronLink popup
+              const signedTx = await tronWeb.trx.sign(transaction) as { txID?: string }
+              await tronWeb.trx.sendRawTransaction(signedTx)
+              const txId = signedTx.txID ?? ''
               const scanUrl = `https://nile.tronscan.org/#/transaction/${txId}`
               setSwapResult(`✅ ${t('swap')}: ${swapAmount} ${swapFrom} → ${data.data.toAmount} ${swapTo} via ${unsignedTx.protocol as string}\n🔗 TronLink signed · <a href="${scanUrl}" target="_blank">${txId.slice(0, 20)}...</a>`)
             } catch (signErr) {
               const errMsg = (signErr as Error).message ?? String(signErr) ?? 'Unknown'
               console.error('[Swap] TronLink error:', errMsg, signErr)
-              if (['cancel','denied','declined','reject'].some(k => errMsg.toLowerCase().includes(k))) {
+              if (['cancel','denied','declined','reject','user'].some(k => errMsg.toLowerCase().includes(k))) {
                 setSwapResult(`❌ 用户取消了签名`)
               } else {
                 setSwapResult(`❌ TronLink error: ${errMsg.slice(0, 100)}`)
