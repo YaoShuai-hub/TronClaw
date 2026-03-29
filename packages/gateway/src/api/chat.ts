@@ -105,7 +105,20 @@ Always use tools before answering. Respond in the user's language (Chinese if th
     tools: [{ functionDeclarations: TOOL_DEFS }],
   })
 
-  const chatHistory = history.map(h => ({
+  // Gemini requires history to start with 'user' role — skip leading assistant messages
+  const filteredHistory = history.filter((_, i) => {
+    if (i === 0 && history[0]?.role === 'assistant') return false
+    return true
+  })
+  // Also ensure alternating roles (Gemini strict requirement)
+  const validHistory: typeof history = []
+  let lastRole = ''
+  for (const h of filteredHistory) {
+    const geminiRole = h.role === 'assistant' ? 'model' : 'user'
+    if (geminiRole !== lastRole) { validHistory.push(h); lastRole = geminiRole }
+  }
+
+  const chatHistory = validHistory.map(h => ({
     role: h.role === 'assistant' ? 'model' : 'user',
     parts: [{ text: h.content }],
   }))
