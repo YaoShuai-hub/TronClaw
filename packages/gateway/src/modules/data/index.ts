@@ -131,8 +131,6 @@ export async function analyzeAddress(address: string): Promise<AddressInfo> {
           try {
             readableBalance = (Number(BigInt(rawBalance)) / 10 ** known.decimals).toFixed(known.decimals >= 18 ? 4 : 2)
           } catch { readableBalance = '0' }
-          const usdValue = parseFloat(readableBalance) * known.priceUsd
-          if (usdValue < 100) return null // Only show holdings ≥ $100
           return { contractAddress, symbol: known.symbol, name: known.name, balance: readableBalance, decimals: known.decimals }
         })
         .filter(Boolean) as AddressInfo['tokenHoldings']
@@ -148,10 +146,15 @@ export async function analyzeAddress(address: string): Promise<AddressInfo> {
       const trxUsdValue = parseFloat(trxBalance) * trxPrice
       console.log(`[Data] analyzeAddress: ${address} on ${clientNames[i]}, TRX=${trxBalance}, tokens=${tokenHoldings.length}`)
 
+      // Sort by balance desc, keep top 10
+      const sortedHoldings = tokenHoldings
+        .sort((a, b) => parseFloat(b.balance) - parseFloat(a.balance))
+        .slice(0, 10)
+
       return {
         address,
         trxBalance,
-        tokenHoldings,
+        tokenHoldings: sortedHoldings,
         txCount,
         firstTxDate: account.create_time
           ? new Date(account.create_time).toISOString().split('T')[0]
@@ -177,71 +180,53 @@ export async function getTxHistory(
   if (isMockMode()) return MOCK_TRANSACTIONS.slice(0, limit)
 
   const MAX_UINT256 = BigInt('115792089237316195423570985008687907853269984665640564039457584007913129639935')
-  // Try mainnet first, fallback to Nile
-  const clients = [mainnetClient(), tronGridClient()]
 
-  for (const client of clients) {
+  function parseTxList(txs: Array<Record<string, unknown>>, lim: number) {
+    return txs
+      .filter(tx => {
+        try { return BigInt(String(tx.value ?? '0')) !== MAX_UINT256 } catch { return true }
+      })
+      .slice(0, lim)
+      .map((tx: Record<string, unknown>) => {
+        const rawValue = String(tx.value ?? '0')
+        const tokenInfo = (tx.token_info as Record<string, unknown>) ?? {}
+        const decimals = (tokenInfo.decimals as number) ?? 6
+        let readableValue: string
+        try {
+          readableValue = (Number(BigInt(rawValue)) / 10 ** decimals).toFixed(decimals >= 18 ? 4 : 2)
+        } catch { readableValue = rawValue }
+        return {
+          hash: tx.transaction_id as string,
+          from: tx.from as string,
+          to: tx.to as string,
+          value: readableValue,
+          token: (tokenInfo.address as string) ?? '',
+          tokenSymbol: (tokenInfo.symbol as string) ?? '?',
+          timestamp: tx.block_timestamp as number,
+          confirmed: true,
+        }
+      })
+  }
+
+  // Try Nile first (user's network), then mainnet as fallback
+  const clients: Array<{ client: ReturnType<typeof tronGridClient>, name: string }> = [
+    { client: tronGridClient(), name: 'nile' },
+    { client: mainnetClient(), name: 'mainnet' },
+  ]
+
+  for (const { client, name } of clients) {
     try {
       const { data } = await client.get(`/v1/accounts/${address}/transactions/trc20`, {
-        params: { limit: limit * 3, order_by: 'block_timestamp,desc' }, // fetch more to allow filtering
+        params: { limit: Math.min(limit * 3, 200), order_by: 'block_timestamp,desc' },
       })
-
       const txs = (data?.data ?? []) as Array<Record<string, unknown>>
-
-      if (txs.length > 0) {
-        const result = txs
-          .filter(tx => {
-            // Filter out approve(max) calls — value equals max uint256
-            try { return BigInt(String(tx.value ?? '0')) !== MAX_UINT256 } catch { return true }
-          })
-          .slice(0, limit)
-          .map((tx: Record<string, unknown>) => {
-            const rawValue = String(tx.value ?? '0')
-            const tokenInfo = (tx.token_info as Record<string, unknown>) ?? {}
-            const decimals = (tokenInfo.decimals as number) ?? 6
-            let readableValue: string
-            try {
-              readableValue = (Number(BigInt(rawValue)) / 10 ** decimals).toFixed(decimals >= 18 ? 4 : 2)
-            } catch { readableValue = rawValue }
-            return {
-              hash: tx.transaction_id as string,
-              from: tx.from as string,
-              to: tx.to as string,
-              value: readableValue,
-              token: (tokenInfo.address as string) ?? '',
-              tokenSymbol: (tokenInfo.symbol as string) ?? '?',
-              timestamp: tx.block_timestamp as number,
-              confirmed: true,
-            }
-          })
-        if (result.length > 0) return result
+      const result = parseTxList(txs, limit)
+      if (result.length > 0) {
+        console.log(`[Data] getTxHistory: ${address} found ${result.length} txs on ${name}`)
+        return result
       }
-
-      // Try native TRX transactions if no TRC20 found
-      const nativeRes = await client.get(`/v1/accounts/${address}/transactions`, {
-        params: { limit, order_by: 'block_timestamp,desc', only_confirmed: true },
-      })
-      const nativeTxs = (nativeRes.data?.data ?? []) as Array<Record<string, unknown>>
-      if (nativeTxs.length > 0) {
-        return nativeTxs.slice(0, limit).map((tx: Record<string, unknown>) => {
-          const rawData = (tx.raw_data as Record<string, unknown>) ?? {}
-          const contract = ((rawData.contract as unknown[])?.[0] as Record<string, unknown>) ?? {}
-          const value = ((contract.parameter as Record<string, unknown>)?.value as Record<string, unknown>) ?? {}
-          return {
-            hash: (tx.txID as string) ?? '',
-            from: address,
-            to: (value.to_address as string) ?? '',
-            value: value.amount != null ? (Number(value.amount) / 1_000_000).toFixed(6) : '0',
-            token: 'TRX',
-            tokenSymbol: 'TRX',
-            timestamp: (tx.block_timestamp as number) ?? Date.now(),
-            confirmed: true,
-          }
-        })
-      }
-      // No data on this network, try next
     } catch (e) {
-      console.warn('[Data] getTxHistory error:', (e as Error).message)
+      console.warn(`[Data] getTxHistory ${name} error:`, (e as Error).message)
     }
   }
   return []

@@ -70,7 +70,7 @@ export default function Data() {
     try {
       const [addrRes, txRes] = await Promise.all([
         axios.get(`/api/v1/data/address/${query.trim()}`),
-        axios.get(`/api/v1/data/transactions/${query.trim()}?limit=10`),
+        axios.get(`/api/v1/data/transactions/${query.trim()}?limit=100`),
       ])
       setInfo(addrRes.data.data); setTxs(txRes.data.data)
     } catch { setError('Address not found or invalid'); setInfo(null); setTxs([]) }
@@ -123,20 +123,30 @@ export default function Data() {
                     <div><div className="text-[10px] text-text-3 mb-0.5">{t('firstActive')}</div><div className="text-lg font-bold text-text-0">{info.firstTxDate ?? 'N/A'}</div></div>
                   </div>
                   {info.tokenHoldings.length > 0 && (
-                    <div className="flex flex-wrap gap-2">
-                      {info.tokenHoldings.map(tk => (
-                        <div key={tk.symbol} className="badge">
-                          <span className="text-text-0 font-medium">{tk.symbol}</span>
-                          <span className="text-text-3">{parseFloat(tk.balance).toLocaleString()}</span>
-                        </div>
-                      ))}
+                    <div>
+                      <div className="text-[10px] text-text-3 mb-2">Token Holdings (Top {info.tokenHoldings.length})</div>
+                      <div className="space-y-1.5">
+                        {info.tokenHoldings.map((tk, i) => (
+                          <div key={tk.symbol} className="flex items-center justify-between px-2 py-1.5 rounded-lg bg-bg-3/50 text-xs">
+                            <div className="flex items-center gap-2">
+                              <span className="text-[9px] text-text-3 w-4">#{i+1}</span>
+                              <span className="font-medium text-text-0">{tk.symbol}</span>
+                              <span className="text-[9px] text-text-3">{(tk as any).name}</span>
+                            </div>
+                            <span className="font-mono text-accent font-medium">{parseFloat(tk.balance).toLocaleString()}</span>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   )}
                 </div>
                 {txs.length > 0 && (
                   <div className="glass-card p-5">
-                    <div className="text-sm font-semibold text-text-0 mb-3">{t('recentTransactions')}</div>
-                    <div className="space-y-2">
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="text-sm font-semibold text-text-0">{t('recentTransactions')}</span>
+                      <span className="text-[10px] text-text-3">{txs.length} txs</span>
+                    </div>
+                    <div className="space-y-2 max-h-[360px] overflow-y-auto pr-1">
                       {txs.map((tx, i) => {
                         const isSend = tx.from?.toLowerCase() === query.trim().toLowerCase()
                         return (
