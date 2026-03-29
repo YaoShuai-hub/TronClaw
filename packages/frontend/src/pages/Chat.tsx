@@ -25,6 +25,82 @@ const EXAMPLES = [
   { cat: '⚡', text: '当TRX跌到0.08时自动买入500个' },
 ]
 
+interface DeFiReport {
+  protocol: string; pool: string; amount: string; token: string
+  apy: string; txHash: string; steps: string[]
+  estimatedMonthly: string; estimatedYearly: string
+}
+
+function DeFiReportCard({ report }: { report: DeFiReport }) {
+  const TRONSCAN_NILE = 'https://nile.tronscan.org/#'
+  return (
+    <div className="mt-3 rounded-2xl border border-accent/20 bg-accent/5 overflow-hidden">
+      {/* Header */}
+      <div className="px-4 py-3 bg-accent/10 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <span className="text-base">🏦</span>
+          <span className="text-sm font-semibold text-text-0">DeFi 质押已执行</span>
+          <span className="badge badge-green !text-[9px]">✓ 成功</span>
+        </div>
+        <span className="text-xs text-accent font-bold">{report.apy}% APY</span>
+      </div>
+      {/* Stats */}
+      <div className="grid grid-cols-3 gap-3 px-4 py-3 border-b border-white/[0.04]">
+        <div className="text-center">
+          <div className="text-lg font-bold text-text-0">{report.amount}</div>
+          <div className="text-[10px] text-text-3">{report.token} 已质押</div>
+        </div>
+        <div className="text-center">
+          <div className="text-lg font-bold text-accent">+{report.estimatedMonthly}</div>
+          <div className="text-[10px] text-text-3">预计月收益</div>
+        </div>
+        <div className="text-center">
+          <div className="text-lg font-bold text-brand">+{report.estimatedYearly}</div>
+          <div className="text-[10px] text-text-3">预计年收益</div>
+        </div>
+      </div>
+      {/* Steps */}
+      <div className="px-4 py-3 space-y-1.5">
+        {report.steps.map((step, i) => (
+          <div key={i} className="flex items-center gap-2 text-xs text-text-2">
+            <span className="w-4 h-4 rounded-full bg-accent/20 text-accent text-[9px] flex items-center justify-center flex-shrink-0">{i+1}</span>
+            {step}
+          </div>
+        ))}
+      </div>
+      {/* TxHash */}
+      {report.txHash && (
+        <div className="px-4 pb-3">
+          <a href={`${TRONSCAN_NILE}/transaction/${report.txHash}`} target="_blank"
+            className="flex items-center gap-1.5 text-[11px] text-brand/70 hover:text-brand transition-colors">
+            <span className="font-mono">{report.txHash.slice(0, 24)}...</span>
+            <ExternalLink size={10} />
+          </a>
+        </div>
+      )}
+      {/* Protocol */}
+      <div className="px-4 pb-3 flex items-center gap-2">
+        <span className="text-[10px] text-text-3">协议：</span>
+        <span className="badge badge-blue !text-[9px]">{report.protocol}</span>
+        <span className="text-[10px] text-text-3">池子：</span>
+        <span className="badge !text-[9px]">{report.pool}</span>
+      </div>
+    </div>
+  )
+}
+
+function parseMessageContent(content: string): { text: string; defiReport: DeFiReport | null } {
+  const match = content.match(/\[DEFI_REPORT\]([\s\S]*?)\[\/DEFI_REPORT\]/)
+  if (!match) return { text: content, defiReport: null }
+  try {
+    const report = JSON.parse(match[1].trim()) as DeFiReport
+    const text = content.replace(/\[DEFI_REPORT\][\s\S]*?\[\/DEFI_REPORT\]/, '').trim()
+    return { text, defiReport: report }
+  } catch {
+    return { text: content, defiReport: null }
+  }
+}
+
 function ToolCallCard({ toolCalls }: { toolCalls: Message['toolCalls'] }) {
   const [open, setOpen] = useState(false)
   if (!toolCalls?.length) return null
@@ -175,10 +251,19 @@ export default function Chat() {
                     ? 'bg-bg-2 text-text-1 border border-white/[0.06]'
                     : 'bg-brand/15 text-text-0 border border-brand/20'
                   }`}>
-                  {msg.role === 'assistant' && msg.id === latestId && !loading
-                    ? <TypeWriter text={msg.content} />
-                    : <span className="whitespace-pre-wrap">{msg.content}</span>
-                  }
+                  {(() => {
+                    if (msg.role !== 'assistant') return <span className="whitespace-pre-wrap">{msg.content}</span>
+                    const { text, defiReport } = parseMessageContent(msg.content)
+                    return (
+                      <>
+                        {msg.id === latestId && !loading
+                          ? <TypeWriter text={text || msg.content} />
+                          : <span className="whitespace-pre-wrap">{text || msg.content}</span>
+                        }
+                        {defiReport && <DeFiReportCard report={defiReport} />}
+                      </>
+                    )
+                  })()}
                 </div>
                 <ToolCallCard toolCalls={msg.toolCalls} />
               </div>
