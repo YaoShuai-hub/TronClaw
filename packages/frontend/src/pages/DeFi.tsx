@@ -97,21 +97,31 @@ export default function DeFi() {
           if (unsignedTx._demo) {
             // Real TronLink signing — send tiny TRX transfer as proof-of-swap
             // 1 SUN = 0.000001 TRX, negligible but creates real on-chain tx
-            const SWAP_DEMO_ADDRESS = 'TFp3Ls4mHdzysbX1qxbwXdMzS8mkvhCMx6'
             try {
-              const receipt = await tronWeb.trx.sendTransaction(SWAP_DEMO_ADDRESS, 1) as { txid?: string; result?: boolean }
-              const txId = receipt.txid ?? ''
-              const network = 'nile' // testnet
+              // TronLink API: use tronWeb.trx.sendTransaction(to, amount_in_sun)
+              // amount=1 SUN = 0.000001 TRX — negligible proof-of-swap tx
+              const SWAP_DEMO_ADDRESS = 'TFp3Ls4mHdzysbX1qxbwXdMzS8mkvhCMx6'
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              const trxApi = (tronWeb.trx as unknown as Record<string, (...args: unknown[]) => Promise<unknown>>)
+              // TronLink exposes sendTransaction or send depending on version
+              const sendFn = trxApi['sendTransaction'] ?? trxApi['send']
+              if (!sendFn) throw new Error('sendTransaction not available')
+              const receipt = await sendFn(SWAP_DEMO_ADDRESS, 1) as { txid?: string; result?: boolean; transaction?: { txID?: string } }
+              const txId = receipt.txid ?? receipt.transaction?.txID ?? ''
               const scanUrl = `https://nile.tronscan.org/#/transaction/${txId}`
-              setSwapResult(`✅ ${t('swap')}: ${swapAmount} ${swapFrom} → ${data.data.toAmount} ${swapTo} via ${unsignedTx.protocol as string}\n🔗 TronLink signed · <a href="${scanUrl}" target="_blank">${txId.slice(0, 20)}...</a>`)
+              if (txId) {
+                setSwapResult(`✅ ${t('swap')}: ${swapAmount} ${swapFrom} → ${data.data.toAmount} ${swapTo} via ${unsignedTx.protocol as string}\n🔗 TronLink signed · <a href="${scanUrl}" target="_blank">${txId.slice(0, 20)}...</a>`)
+              } else {
+                setSwapResult(`✅ ${t('swap')}: ${swapAmount} ${swapFrom} → ${data.data.toAmount} ${swapTo} via ${unsignedTx.protocol as string}\n🔗 TronLink confirmed`)
+              }
             } catch (signErr) {
-              const errMsg = (signErr as Error).message ?? 'Unknown error'
-              if (errMsg.toLowerCase().includes('cancel') || errMsg.toLowerCase().includes('denied') || errMsg.toLowerCase().includes('declined')) {
+              const errMsg = (signErr as Error).message ?? String(signErr) ?? 'Unknown error'
+              console.error('[Swap] TronLink sign error:', errMsg, signErr)
+              if (errMsg.toLowerCase().includes('cancel') || errMsg.toLowerCase().includes('denied') || errMsg.toLowerCase().includes('declined') || errMsg.toLowerCase().includes('reject')) {
                 setSwapResult(`❌ 用户取消了签名`)
               } else {
-                // Signing not supported on this network, show demo result
-                await new Promise(r => setTimeout(r, 600))
-                setSwapResult(`✅ ${t('swap')}: ${swapAmount} ${swapFrom} → ${data.data.toAmount} ${swapTo} via ${unsignedTx.protocol as string}\n🔗 Signed via TronLink (demo)`)
+                // Show actual error for debugging
+                setSwapResult(`❌ TronLink error: ${errMsg.slice(0, 80)}`)
               }
             }
           } else {
