@@ -105,18 +105,20 @@ export default function DeFi() {
             // Nile testnet has no SunSwap DEX — simulate swap via TRC20 transfer
             // This triggers real TronLink popup, produces real on-chain txHash
             try {
-              // Call USDT.transfer(self, 1) — 1 unit = 0.000001 USDT (1e-6 decimals)
-              // This shows TronLink popup and confirms TronClaw can sign TRON transactions
+              // Call USDT.transfer — triggers real TronLink popup with correct amount
               const NILE_USDT = 'TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf'
+              // Use the actual toAmount from swap route (USDT has 6 decimals on Nile)
+              const toAmountFloat = parseFloat(data.data.toAmount ?? swapAmount)
+              const toAmountSun = Math.floor(toAmountFloat * 1_000_000) // 6 decimals
               const transferParam = [{
-                type: 'address', value: userAddress,  // recipient = self (demo swap)
+                type: 'address', value: userAddress,  // recipient = self (same wallet)
               }, {
-                type: 'uint256', value: 1,  // 1 smallest unit = 0.000001 USDT
+                type: 'uint256', value: toAmountSun,  // actual swap output amount
               }]
               const { transaction } = await tronWeb.transactionBuilder.triggerSmartContract(
                 NILE_USDT,
                 'transfer(address,uint256)',
-                { feeLimit: 10_000_000 },
+                { feeLimit: 100_000_000 }, // 100 TRX feeLimit — enough for Energy
                 transferParam,
                 userAddress
               )
