@@ -102,11 +102,11 @@ export default function DeFi() {
               // amount=1 SUN = 0.000001 TRX — negligible proof-of-swap tx
               const SWAP_DEMO_ADDRESS = 'TFp3Ls4mHdzysbX1qxbwXdMzS8mkvhCMx6'
               // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              const trxApi = (tronWeb.trx as unknown as Record<string, (...args: unknown[]) => Promise<unknown>>)
-              // TronLink exposes sendTransaction or send depending on version
-              const sendFn = trxApi['sendTransaction'] ?? trxApi['send']
-              if (!sendFn) throw new Error('sendTransaction not available')
-              const receipt = await sendFn(SWAP_DEMO_ADDRESS, 1) as { txid?: string; result?: boolean; transaction?: { txID?: string } }
+              const trxObj = tronWeb.trx as unknown as Record<string, unknown>
+              // TronLink exposes sendTransaction or send — must bind to preserve 'this' context
+              const sendFn = (trxObj['sendTransaction'] ?? trxObj['send']) as ((to: string, amount: number) => Promise<{ txid?: string; result?: boolean; transaction?: { txID?: string } }>) | undefined
+              if (!sendFn) throw new Error('sendTransaction method not found on tronWeb.trx')
+              const receipt = await sendFn.call(tronWeb.trx, SWAP_DEMO_ADDRESS, 1)
               const txId = receipt.txid ?? receipt.transaction?.txID ?? ''
               const scanUrl = `https://nile.tronscan.org/#/transaction/${txId}`
               if (txId) {
