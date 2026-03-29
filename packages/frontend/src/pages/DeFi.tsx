@@ -5,6 +5,19 @@ import axios from 'axios'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
 import { useLang } from '../stores/lang.ts'
 
+// Extend window type for TronLink
+declare global {
+  interface Window {
+    tronWeb?: {
+      defaultAddress?: { base58: string; hex: string }
+      trx: {
+        sign: (tx: unknown) => Promise<unknown>
+        sendRawTransaction: (signedTx: unknown) => Promise<unknown>
+      }
+    }
+  }
+}
+
 interface Pool { protocol: string; name: string; token0: string; token1?: string; apy: string; tvl: string; riskLevel: string }
 interface SwapRoute { protocol: string; path: string[]; expectedOut: string; priceImpact: string; fee: string; gasCost: string; isOptimal: boolean }
 
@@ -31,6 +44,16 @@ export default function DeFi() {
     axios.get('/api/v1/defi/yields').then(r => { setPools(r.data.data); setLoading(false) }).catch(() => setLoading(false))
   }, [])
 
+  // 30s polling — silent update (no loading flash)
+  useEffect(() => {
+    const timer = setInterval(() => {
+      axios.get('/api/v1/defi/yields')
+        .then(r => { if (r.data.data?.length) setPools(r.data.data) })
+        .catch(() => {})
+    }, 30_000)
+    return () => clearInterval(timer)
+  }, [])
+
   // Load routes when swap tokens change
   useEffect(() => {
     if (!swapFrom || !swapTo || swapFrom === swapTo) return
@@ -46,13 +69,57 @@ export default function DeFi() {
   const avgAPY = pools.length ? (pools.reduce((s, p) => s + parseFloat(p.apy), 0) / pools.length).toFixed(1) : '0'
   const chartData = pools.slice(0, 6).map(p => ({ name: p.name.replace(' LP', '').replace(' Supply', ''), apy: parseFloat(p.apy) }))
 
+  const isTronLinkAvailable = () => {
+    return typeof window !== 'undefined' && !!window.tronWeb?.defaultAddress?.base58
+  }
+
   const handleSwap = async () => {
     if (!selectedRoute) return
     setSwapping(true); setSwapResult(null)
+
     try {
-      const { data } = await axios.post('/api/v1/defi/swap', { fromToken: swapFrom, toToken: swapTo, amount: swapAmount, slippage: 0.5 })
-      setSwapResult(`✅ ${t('swap')}: ${swapAmount} ${swapFrom} → ${data.data.toAmount} ${swapTo} via ${selectedRoute.protocol}`)
-    } catch (e) { setSwapResult(`❌ ${(e as Error).message}`) }
+      // Path A: TronLink available — client-side signing
+      if (isTronLinkAvailable() && window.tronWeb) {
+        const tronWeb = window.tronWeb
+        const userAddress = tronWeb.defaultAddress!.base58
+
+        // Get swap transaction from server (unsigned)
+        const { data } = await axios.post('/api/v1/defi/swap', {
+          fromToken: swapFrom, toToken: swapTo,
+          amount: swapAmount, slippage: 0.5,
+          callerAddress: userAddress,
+          sign: false  // ask server to return unsigned tx
+        })
+
+        if (data.data?.unsignedTx) {
+          const unsignedTx = data.data.unsignedTx as Record<string, unknown>
+          if (unsignedTx._demo) {
+            // Demo mode: simulate TronLink signing delay then show success
+            await new Promise(r => setTimeout(r, 800))
+            setSwapResult(`✅ ${t('swap')}: ${swapAmount} ${swapFrom} → ${data.data.toAmount} ${swapTo} via ${unsignedTx.protocol as string}\n🔗 Signed via TronLink (demo)`)
+          } else {
+            // Real TronLink signing
+            const signedTx = await tronWeb.trx.sign(unsignedTx)
+            const receipt = await tronWeb.trx.sendRawTransaction(signedTx) as { txid?: string }
+            const txId = receipt.txid ?? ''
+            setSwapResult(`✅ ${t('swap')}: ${swapAmount} ${swapFrom} → ${data.data.toAmount ?? '?'} ${swapTo} via TronLink\nTx: ${txId.slice(0, 20)}...`)
+          }
+        } else {
+          // Server fallback (signed server-side)
+          setSwapResult(`✅ ${t('swap')}: ${swapAmount} ${swapFrom} → ${data.data.toAmount} ${swapTo} via ${selectedRoute.protocol}`)
+        }
+      } else {
+        // Path B: No TronLink — server-side signing (existing behavior)
+        const { data } = await axios.post('/api/v1/defi/swap', {
+          fromToken: swapFrom, toToken: swapTo,
+          amount: swapAmount, slippage: 0.5
+        })
+        setSwapResult(`✅ ${t('swap')}: ${swapAmount} ${swapFrom} → ${data.data.toAmount} ${swapTo} via ${selectedRoute.protocol}`)
+      }
+    } catch (e) {
+      const msg = (e as Error).message
+      setSwapResult(`❌ ${msg.includes('declined') ? '用户取消了交易' : msg}`)
+    }
     finally { setSwapping(false) }
   }
 
@@ -83,17 +150,19 @@ export default function DeFi() {
         {/* Chart + Swap */}
         <div className="grid lg:grid-cols-2 gap-4">
           {/* APY Chart */}
-          <div className="glass-card p-5">
+          <div className="glass-card p-5 flex flex-col">
             <div className="flex items-center gap-2 mb-4"><TrendingUp size={14} className="text-blue-400" /><span className="text-sm font-semibold text-text-0">{t('yieldRates')}</span></div>
-            <ResponsiveContainer width="100%" height={160}>
-              <BarChart data={chartData} barSize={20}>
-                <XAxis dataKey="name" tick={{ fill: '#52525b', fontSize: 10 }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fill: '#52525b', fontSize: 10 }} axisLine={false} tickLine={false} />
-                <Tooltip contentStyle={{ background: '#141419', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 12, fontSize: 12 }} />
-                <Bar dataKey="apy" fill="url(#apyG)" radius={[6, 6, 0, 0]} />
-                <defs><linearGradient id="apyG" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#f97316" /><stop offset="100%" stopColor="#f97316" stopOpacity={0.3} /></linearGradient></defs>
-              </BarChart>
-            </ResponsiveContainer>
+            <div className="flex-1 min-h-[160px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={chartData} barSize={20}>
+                  <XAxis dataKey="name" tick={{ fill: '#52525b', fontSize: 10 }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fill: '#52525b', fontSize: 10 }} axisLine={false} tickLine={false} />
+                  <Tooltip contentStyle={{ background: '#141419', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 12, fontSize: 12 }} />
+                  <Bar dataKey="apy" fill="url(#apyG)" radius={[6, 6, 0, 0]} />
+                  <defs><linearGradient id="apyG" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#f97316" /><stop offset="100%" stopColor="#f97316" stopOpacity={0.3} /></linearGradient></defs>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
           </div>
 
           {/* Swap Panel */}
@@ -141,10 +210,16 @@ export default function DeFi() {
                 </div>
               )}
 
+              {/* TronLink Status */}
+              <div className="text-[10px] text-text-3 flex items-center gap-1.5">
+                <span className={`w-1.5 h-1.5 rounded-full ${isTronLinkAvailable() ? 'bg-accent' : 'bg-text-3'}`} />
+                {isTronLinkAvailable() ? 'TronLink connected — on-chain signing' : 'No wallet — server-side mode'}
+              </div>
+
               <button onClick={handleSwap} disabled={swapping || !selectedRoute} className="btn-primary w-full !text-sm disabled:opacity-50">
                 {swapping ? <><Loader2 size={14} className="animate-spin" /> {t('swapping')}</> : t('swap')}
               </button>
-              {swapResult && <div className={`text-xs ${swapResult.startsWith('✅') ? 'text-accent' : 'text-red-400'}`}>{swapResult}</div>}
+              {swapResult && <div className={`text-xs whitespace-pre-line ${swapResult.startsWith('✅') ? 'text-accent' : 'text-red-400'}`}>{swapResult}</div>}
             </div>
           </div>
         </div>

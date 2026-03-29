@@ -28,9 +28,16 @@ const portfolioHandler: RequestHandler = async (req, res) => {
 
 const swapHandler: RequestHandler = async (req, res) => {
   try {
-    const schema = z.object({ fromToken: z.string(), toToken: z.string(), amount: z.string(), slippage: z.number().optional().default(0.5) })
-    const { fromToken, toToken, amount, slippage } = schema.parse(req.body)
-    res.json(ok(await swapTokens(fromToken, toToken, amount, slippage)))
+    const schema = z.object({
+      fromToken: z.string(),
+      toToken: z.string(),
+      amount: z.string(),
+      slippage: z.number().optional().default(0.5),
+      callerAddress: z.string().optional(),
+      sign: z.boolean().optional().default(true),
+    })
+    const { fromToken, toToken, amount, slippage, callerAddress, sign } = schema.parse(req.body)
+    res.json(ok(await swapTokens(fromToken, toToken, amount, slippage, callerAddress, sign === false)))
   } catch (e) { res.status(500).json(err((e as Error).message)) }
 }
 

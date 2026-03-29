@@ -27,9 +27,28 @@ export default function Data() {
   const [error, setError] = useState('')
 
   useEffect(() => {
-    axios.get('/api/v1/data/whales?token=USDT&hours=24')
+    axios.get('/api/v1/data/whales?token=USDT&hours=24&limit=20')
       .then(r => { setWhales(r.data.data ?? []); setWhaleLoading(false) })
       .catch(() => setWhaleLoading(false))
+  }, [])
+
+  // Silent 30s polling — merges new items into the top of the list
+  useEffect(() => {
+    const timer = setInterval(() => {
+      axios.get('/api/v1/data/whales?token=USDT&hours=24&limit=20')
+        .then(r => {
+          const newData: WhaleTransfer[] = r.data.data ?? []
+          if (newData.length === 0) return
+          setWhales(prev => {
+            const existingHashes = new Set(prev.map(w => w.hash))
+            const freshItems = newData.filter(w => !existingHashes.has(w.hash))
+            if (freshItems.length === 0) return prev
+            return [...freshItems, ...prev].slice(0, 30)
+          })
+        })
+        .catch(() => {})
+    }, 30_000)
+    return () => clearInterval(timer)
   }, [])
 
   useEffect(() => {
@@ -150,7 +169,11 @@ export default function Data() {
               <div className="flex items-center gap-2 mb-4">
                 <Waves size={14} className="text-brand" />
                 <span className="text-sm font-semibold text-text-0">{t('whaleMonitor')}</span>
-                <span className="badge badge-orange !text-[9px] ml-auto">USDT 24h</span>
+                <span className="badge badge-orange !text-[9px]">USDT+USDD 24h</span>
+                <span className="flex items-center gap-1 text-[9px] text-accent ml-auto">
+                  <span className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse" />
+                  LIVE
+                </span>
               </div>
               {whaleLoading ? (
                 <SkeletonList rows={5} />
@@ -166,7 +189,12 @@ export default function Data() {
                           <a href={`${TRONSCAN}/transaction/${w.hash}`} target="_blank" className="font-mono text-text-2 hover:text-brand">
                             {shorten(w.hash, 5)}
                           </a>
-                          <span className="font-bold text-brand">{parseFloat(w.amount).toLocaleString()} {w.tokenSymbol}</span>
+                          <div className="text-right">
+                            <div className="font-bold text-brand">{parseFloat(w.amount).toLocaleString()} {w.tokenSymbol}</div>
+                            {w.usdValue && w.usdValue !== w.amount && (
+                              <div className="text-[9px] text-text-3">${parseFloat(w.usdValue).toLocaleString()}</div>
+                            )}
+                          </div>
                         </div>
                         <div className="flex items-center gap-1 text-text-3">
                           <a href={`${TRONSCAN}/address/${w.from}`} target="_blank" className="font-mono hover:text-brand">{shorten(w.from, 5)}</a>

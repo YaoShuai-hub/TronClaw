@@ -1,6 +1,7 @@
 import 'dotenv/config'
 import { setupProxy } from './utils/proxy.js'
 import { createServer } from './server.js'
+import { startWhalePolling } from './utils/whale-poller.js'
 
 const PORT = parseInt(process.env.PORT ?? '3000', 10)
 
@@ -18,6 +19,7 @@ async function main() {
     if (process.env.HTTPS_PROXY || process.env.HTTP_PROXY) {
       console.log(`   Proxy: ${process.env.HTTPS_PROXY || process.env.HTTP_PROXY}`)
     }
+    startWhalePolling()
   })
 }
 

@@ -7,6 +7,7 @@ import {
 import axios from 'axios'
 import { useWallet } from '../stores/wallet.ts'
 import { useLang } from '../stores/lang.ts'
+import { SkeletonCard } from '../components/Skeleton.tsx'
 
 const TRONSCAN = 'https://nile.tronscan.org/#'
 const FALLBACK = 'TFp3Ls4mHdzysbX1qxbwXdMzS8mkvhCMx6'
@@ -89,7 +90,7 @@ export default function Market() {
   useEffect(() => { loadData() }, [callerAddress])
 
   const filteredServices = category === 'All' ? services : services.filter(s => s.category === category)
-  const filteredTasks = taskSkill === 'All' ? DEMO_TASKS : DEMO_TASKS.filter(t => t.skills.includes(taskSkill))
+  const filteredTasks = taskSkill === 'All' ? DEMO_TASKS : DEMO_TASKS.filter(tk => tk.skills.includes(taskSkill))
 
   const invokeService = async (svc: Service) => {
     setInvoking(svc.id)
@@ -116,38 +117,40 @@ export default function Market() {
 
         {/* Header */}
         <div className="animate-fade-in-up">
-          <div className="flex items-center gap-2 mb-1"><span className="text-2xl">💳</span><h1 className="text-2xl font-bold text-text-0">SealPay</h1></div>
-          <p className="text-sm text-text-3">AI Agent marketplace — services, bounty tasks, and agent NFTs on TRON</p>
+          <div className="flex items-center gap-2 mb-1"><span className="text-2xl">💳</span><h1 className="text-2xl font-bold text-text-0">{t('sealPayTitle')}</h1></div>
+          <p className="text-sm text-text-3">{t('sealPayDesc')}</p>
         </div>
 
         {/* Stats */}
-        {stats && (
-          <div className="grid grid-cols-4 gap-3 animate-fade-in-up delay-1">
-            {[
-              { label: 'AI Services', value: String(stats.totalServices), icon: Store, color: 'text-brand' },
-              { label: 'Volume (USDT)', value: stats.totalVolume, icon: DollarSign, color: 'text-accent' },
-              { label: 'Open Tasks', value: String(DEMO_TASKS.filter(t => t.status === 'open').length), icon: Briefcase, color: 'text-blue-400' },
-              { label: 'Agent NFTs', value: String(DEMO_NFTS.length), icon: Image, color: 'text-purple-400' },
+        <div className="grid grid-cols-4 gap-3">
+          {!stats ? (
+            <><SkeletonCard /><SkeletonCard /><SkeletonCard /><SkeletonCard /></>
+          ) : (
+            [
+              { label: t('aiServices'), value: String(stats.totalServices), icon: Store, color: 'text-brand' },
+              { label: t('volumeUsdt'), value: stats.totalVolume, icon: DollarSign, color: 'text-accent' },
+              { label: t('openTasks'), value: String(DEMO_TASKS.filter(tk => tk.status === 'open').length), icon: Briefcase, color: 'text-blue-400' },
+              { label: t('agentNFTs'), value: String(DEMO_NFTS.length), icon: Image, color: 'text-purple-400' },
             ].map(s => (
               <div key={s.label} className="glass-card p-3 flex items-center gap-2.5">
                 <s.icon size={14} className={s.color} />
                 <div><div className="text-base font-bold text-text-0">{s.value}</div><div className="text-[10px] text-text-3">{s.label}</div></div>
               </div>
-            ))}
-          </div>
-        )}
+            ))
+          )}
+        </div>
 
         {/* Main tabs */}
         <div className="flex gap-1 bg-bg-4 rounded-xl p-1 animate-fade-in-up delay-2">
           {[
-            { id: 'services' as const, icon: Store, label: 'AI Services' },
-            { id: 'tasks' as const, icon: Briefcase, label: 'Bounty Tasks' },
-            { id: 'nfts' as const, icon: Image, label: 'Agent NFTs' },
-          ].map(t => (
-            <button key={t.id} onClick={() => setTab(t.id)}
+            { id: 'services' as const, icon: Store, label: t('services') },
+            { id: 'tasks' as const, icon: Briefcase, label: t('tasks') },
+            { id: 'nfts' as const, icon: Image, label: t('nfts') },
+          ].map(tabItem => (
+            <button key={tabItem.id} onClick={() => setTab(tabItem.id)}
               className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-xs font-medium transition-all
-                ${tab === t.id ? 'bg-bg-2 text-text-0 shadow-sm' : 'text-text-3 hover:text-text-1'}`}>
-              <t.icon size={12} /> {t.label}
+                ${tab === tabItem.id ? 'bg-bg-2 text-text-0 shadow-sm' : 'text-text-3 hover:text-text-1'}`}>
+              <tabItem.icon size={12} /> {tabItem.label}
             </button>
           ))}
         </div>
@@ -207,7 +210,7 @@ export default function Market() {
                       </div>
                       <button onClick={() => setSelectedSvc(svc)} disabled={!!invoking}
                         className="btn-primary !text-[10px] !py-1.5 !px-3 disabled:opacity-50">
-                        {invoking === svc.id ? '...' : 'Invoke'}
+                        {invoking === svc.id ? '...' : t('invoke')}
                       </button>
                     </div>
                     <div className="text-[9px] text-text-3 mt-1.5">{svc.totalCalls.toLocaleString()} invocations</div>
@@ -216,9 +219,9 @@ export default function Market() {
               </div>
 
               <div className="space-y-2">
-                <div className="text-xs font-semibold text-text-0 flex items-center gap-1.5"><Clock size={11} className="text-text-3" />Recent Calls</div>
+                <div className="text-xs font-semibold text-text-0 flex items-center gap-1.5"><Clock size={11} className="text-text-3" />{t('recentCalls')}</div>
                 {history.length === 0 ? (
-                  <div className="glass-card p-4 text-center text-xs text-text-3">No calls yet</div>
+                  <div className="glass-card p-4 text-center text-xs text-text-3">{t('noCallsYet')}</div>
                 ) : history.slice(0, 8).map(h => (
                   <div key={h.id} className="glass-card p-2.5 text-[11px]">
                     <div className="text-accent flex items-center gap-1 mb-0.5"><CheckCircle size={10} /> {h.amount} {h.token}</div>
@@ -244,7 +247,7 @@ export default function Market() {
                 ))}
               </div>
               <div className="text-xs text-text-3">
-                {filteredTasks.filter(t => t.status === 'open').length} open · {DEMO_TASKS.reduce((s, t) => s + parseFloat(t.bounty), 0).toFixed(0)} USDT total bounty
+                {filteredTasks.filter(tk => tk.status === 'open').length} {t('openLabel')} · {DEMO_TASKS.reduce((s, tk) => s + parseFloat(tk.bounty), 0).toFixed(0)} {t('totalBounty')}
               </div>
             </div>
 
@@ -271,7 +274,7 @@ export default function Market() {
                       <div className="text-lg font-bold text-accent mb-1">{task.bounty} {task.token}</div>
                       {task.status === 'open' && (
                         <button onClick={() => claimTask(task)} className="btn-primary !text-[10px] !py-1.5 !px-3">
-                          Claim Task
+                          {t('claimTask')}
                         </button>
                       )}
                       {task.status === 'completed' && (
@@ -320,7 +323,7 @@ export default function Market() {
                     <span className="text-lg font-bold text-brand">{nft.price} USDT</span>
                     <button onClick={e => { e.stopPropagation(); buyNFT(nft) }}
                       className="btn-primary !text-[11px] !py-1.5 !px-4">
-                      Buy Agent NFT
+                      {t('buyAgentNFT')}
                     </button>
                   </div>
                 </motion.div>
@@ -348,7 +351,7 @@ export default function Market() {
                 <div className="flex items-center justify-between">
                   <div className="text-sm"><span className="text-text-3">Cost: </span><span className="font-bold text-brand">{selectedSvc.price} {selectedSvc.token}</span><span className="text-[10px] text-text-3 ml-1">(x402)</span></div>
                   <button onClick={() => invokeService(selectedSvc)} disabled={!!invoking} className="btn-primary disabled:opacity-50">
-                    {invoking ? 'Invoking...' : 'Confirm & Pay'}
+                    {invoking ? t('invoking') : t('confirmPay')}
                   </button>
                 </div>
               </motion.div>
@@ -383,20 +386,20 @@ export default function Market() {
                 <div className="grid grid-cols-3 gap-3 mb-5">
                   <div className="glass-card p-3 text-center">
                     <div className="text-lg font-bold text-yellow-400">{selectedNFT.completedTasks}</div>
-                    <div className="text-[10px] text-text-3">Tasks Done</div>
+                    <div className="text-[10px] text-text-3">{t('tasksDone')}</div>
                   </div>
                   <div className="glass-card p-3 text-center">
                     <div className="text-lg font-bold text-accent">${selectedNFT.totalEarned}</div>
-                    <div className="text-[10px] text-text-3">Total Earned</div>
+                    <div className="text-[10px] text-text-3">{t('totalEarned')}</div>
                   </div>
                   <div className="glass-card p-3 text-center">
                     <div className="text-lg font-bold text-brand">{selectedNFT.rating}</div>
-                    <div className="text-[10px] text-text-3">Rating</div>
+                    <div className="text-[10px] text-text-3">{t('rating')}</div>
                   </div>
                 </div>
 
                 <div className="mb-5">
-                  <div className="text-xs font-semibold text-text-0 mb-2">Skills & Capabilities</div>
+                  <div className="text-xs font-semibold text-text-0 mb-2">{t('skillsCapabilities')}</div>
                   <div className="flex flex-wrap gap-1.5">
                     {selectedNFT.skills.map(s => <span key={s} className="badge badge-blue">{s}</span>)}
                   </div>
@@ -405,10 +408,10 @@ export default function Market() {
                 <div className="flex items-center justify-between pt-4 border-t border-white/[0.04]">
                   <div>
                     <div className="text-2xl font-bold text-brand">{selectedNFT.price} USDT</div>
-                    <div className="text-[10px] text-text-3">Payment via x402 protocol</div>
+                    <div className="text-[10px] text-text-3">{t('paymentViaX402')}</div>
                   </div>
                   <button onClick={() => buyNFT(selectedNFT)} className="btn-primary !text-sm !py-2.5 !px-6">
-                    Buy Agent NFT
+                    {t('buyAgentNFT')}
                   </button>
                 </div>
               </motion.div>

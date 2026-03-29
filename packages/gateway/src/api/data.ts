@@ -26,9 +26,41 @@ const txHandler: RequestHandler = async (req, res) => {
 
 const whalesHandler: RequestHandler = async (req, res) => {
   try {
-    const schema = z.object({ token: z.enum(['TRX', 'USDT', 'USDD']).optional().default('USDT'), minAmount: z.string().optional(), hours: z.string().optional().default('24') })
-    const { token, minAmount, hours } = schema.parse(req.query)
-    res.json(ok(await getWhaleTransfers(token as TokenSymbol, parseInt(hours, 10))))
+    const schema = z.object({
+      token: z.enum(['TRX', 'USDT', 'USDD', 'all']).optional().default('USDT'),
+      minAmount: z.string().optional(),
+      hours: z.string().optional().default('24'),
+      limit: z.string().optional().default('20'),
+    })
+    const { token, hours, limit } = schema.parse(req.query)
+    const parsedHours = parseInt(hours, 10)
+    const parsedLimit = Math.min(parseInt(limit, 10), 50)
+
+    // 'all' or default 'USDT' → on Nile testnet only USDT contract exists
+    if (token === 'all' || token === 'USDT') {
+      const network = process.env.TRON_NETWORK ?? 'nile'
+      if (network === 'nile') {
+        // Nile: USDD contract doesn't exist, only fetch USDT
+        const data = await getWhaleTransfers('USDT', parsedHours, parsedLimit)
+        res.json(ok(data))
+        return
+      }
+      // Mainnet: merge USDT + USDD
+      const [usdtResult, usddResult] = await Promise.allSettled([
+        getWhaleTransfers('USDT', parsedHours, 15),
+        getWhaleTransfers('USDD', parsedHours, 5),
+      ])
+      const combined = [
+        ...(usdtResult.status === 'fulfilled' ? usdtResult.value : []),
+        ...(usddResult.status === 'fulfilled' ? usddResult.value : []),
+      ]
+        .sort((a, b) => b.timestamp - a.timestamp)
+        .slice(0, parsedLimit)
+      res.json(ok(combined))
+      return
+    }
+
+    res.json(ok(await getWhaleTransfers(token as TokenSymbol, parsedHours, parsedLimit)))
   } catch (e) { res.status(500).json(err((e as Error).message)) }
 }
 
