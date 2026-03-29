@@ -1,6 +1,7 @@
 import { Outlet, NavLink, useLocation } from 'react-router-dom'
 import { LayoutDashboard, Store, TrendingUp, Search, Zap, MessageSquare, ExternalLink } from 'lucide-react'
 import WalletButton, { LangToggle } from './WalletButton.tsx'
+import AgentConnect from './AgentConnect.tsx'
 import { useLang } from '../stores/lang.ts'
 
 export default function Layout() {
@@ -57,6 +58,7 @@ export default function Layout() {
 
       <div className="flex-1 flex flex-col overflow-hidden">
         <header className="h-14 flex items-center justify-end gap-3 px-5 border-b border-white/[0.06] bg-bg-1/50 backdrop-blur-sm flex-shrink-0">
+          <AgentConnect />
           <LangToggle />
           <WalletButton />
         </header>

@@ -6,6 +6,7 @@ import axios from 'axios'
 import { getNetwork, isMockMode } from '../../tron/client.js'
 import { getTrxBalance, getTrc20Balance } from '../../tron/contracts.js'
 import { TRONGRID_BASE, TOKEN_CONTRACTS, WHALE_THRESHOLD } from '@tronclaw/shared'
+import { getLiveNetworkStats } from '../../utils/prices.js'
 import type {
   AddressInfo,
   Transaction,
@@ -203,33 +204,7 @@ export async function getTxDetail(txHash: string): Promise<Record<string, unknow
 // ─── Network Overview ─────────────────────────────────────────────────────────
 
 export async function getNetworkOverview() {
-  if (isMockMode()) {
-    return {
-      totalAccounts: '230,456,789',
-      totalTransactions: '8,432,156,234',
-      transactions24h: '6,234,567',
-      tpsAverage: '72.3',
-      tronPrice: '$0.121',
-      marketCap: '$10.8B',
-      blockHeight: 65432198,
-    }
-  }
-  try {
-    const client = tronGridClient()
-    const { data } = await client.get('/v1/blocks?limit=1&order_by=block_timestamp,desc')
-    const latestBlock = data?.data?.[0]
-    return {
-      totalAccounts: 'N/A',
-      totalTransactions: 'N/A',
-      transactions24h: 'N/A',
-      tpsAverage: 'N/A',
-      tronPrice: '$0.121',
-      marketCap: '$10.8B',
-      blockHeight: latestBlock?.block_header?.raw_data?.number ?? 0,
-    }
-  } catch {
-    return { totalAccounts: 'N/A', totalTransactions: 'N/A', transactions24h: 'N/A', tpsAverage: 'N/A', tronPrice: '$0.121', marketCap: '$10.8B', blockHeight: 0 }
-  }
+  return getLiveNetworkStats()
 }
 
 export async function getTokenInfo(tokenAddress: string): Promise<TokenInfo> {

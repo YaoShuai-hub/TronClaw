@@ -3,6 +3,7 @@
  * Bank of AI infrastructure: MCP Server + Skills Modules (Swap/Lending)
  */
 import { isMockMode } from '../../tron/client.js'
+import { getSunSwapPools, getJustLendRates } from '../../utils/prices.js'
 import type { DeFiPool, SwapResult, YieldStrategy, YieldStep } from '@tronclaw/shared'
 
 // ─── Mock data ────────────────────────────────────────────────────────────────
@@ -21,16 +22,57 @@ const MOCK_POOLS: DeFiPool[] = [
 export async function getDefiYields(
   protocol: 'sunswap' | 'justlend' | 'all' = 'all',
 ): Promise<DeFiPool[]> {
-  if (isMockMode()) {
-    if (protocol === 'all') return MOCK_POOLS
-    return MOCK_POOLS.filter(p => p.protocol === protocol)
+  // Always try real APIs first (with fallback to mock)
+  const pools: DeFiPool[] = []
+
+  if (protocol === 'all' || protocol === 'justlend') {
+    try {
+      const rates = await getJustLendRates()
+      for (const r of rates) {
+        pools.push({
+          protocol: 'justlend',
+          name: `${r.token} Supply`,
+          token0: r.token,
+          apy: r.supplyAPY,
+          tvl: r.tvl,
+          riskLevel: 'low',
+        })
+      }
+    } catch {
+      // fallback below
+    }
   }
 
-  // Real implementation: fetch from SunSwap/JustLend APIs
-  // JustLend: https://lending.just.network/api/v1/markets
-  // SunSwap: https://api.sunswap.com/v2/poolInfo
-  // TODO: implement real API calls when endpoints confirmed
-  return MOCK_POOLS.filter(p => protocol === 'all' || p.protocol === protocol)
+  if (protocol === 'all' || protocol === 'sunswap') {
+    try {
+      const sunPools = await getSunSwapPools()
+      for (const p of sunPools) {
+        const tokens = p.name.split('/')
+        const apy = parseFloat(p.apy)
+        pools.push({
+          protocol: 'sunswap',
+          name: `${p.name} LP`,
+          token0: tokens[0] ?? p.name,
+          token1: tokens[1],
+          apy: p.apy,
+          tvl: p.tvl,
+          riskLevel: apy > 25 ? 'high' : apy > 10 ? 'medium' : 'low',
+          contractAddress: p.address,
+        })
+      }
+    } catch {
+      // fallback below
+    }
+  }
+
+  // If real APIs returned data, use it
+  if (pools.length > 0) {
+    return protocol === 'all' ? pools : pools.filter(p => p.protocol === protocol)
+  }
+
+  // Fallback to mock
+  if (protocol === 'all') return MOCK_POOLS
+  return MOCK_POOLS.filter(p => p.protocol === protocol)
 }
 
 // ─── Swap (SunSwap) ───────────────────────────────────────────────────────────
