@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Send, Loader2, Zap, Bot, User, ExternalLink } from 'lucide-react'
 import axios from 'axios'
+import ReactMarkdown from 'react-markdown'
 import { useWallet } from '../stores/wallet.ts'
 import { useLang } from '../stores/lang.ts'
 
@@ -254,12 +255,24 @@ export default function Chat() {
                   {(() => {
                     if (msg.role !== 'assistant') return <span className="whitespace-pre-wrap">{msg.content}</span>
                     const { text, defiReport } = parseMessageContent(msg.content)
+                    const displayText = text || msg.content
                     return (
                       <>
-                        {msg.id === latestId && !loading
-                          ? <TypeWriter text={text || msg.content} />
-                          : <span className="whitespace-pre-wrap">{text || msg.content}</span>
-                        }
+                        <div className="prose prose-invert prose-sm max-w-none
+                          prose-p:my-1 prose-p:leading-relaxed
+                          prose-headings:text-text-0 prose-headings:font-semibold prose-headings:my-2
+                          prose-h2:text-sm prose-h3:text-xs
+                          prose-strong:text-text-0 prose-strong:font-semibold
+                          prose-ul:my-1 prose-ul:pl-4 prose-li:my-0.5
+                          prose-code:text-brand prose-code:bg-bg-4 prose-code:px-1 prose-code:rounded prose-code:text-xs
+                          prose-pre:bg-bg-4 prose-pre:border prose-pre:border-white/[0.06] prose-pre:rounded-xl prose-pre:text-xs
+                          prose-a:text-brand prose-a:no-underline hover:prose-a:underline
+                          prose-blockquote:border-brand/40 prose-blockquote:text-text-2">
+                          {msg.id === latestId && !loading
+                            ? <TypeWriter text={displayText} />
+                            : <ReactMarkdown>{displayText}</ReactMarkdown>
+                          }
+                        </div>
                         {defiReport && <DeFiReportCard report={defiReport} />}
                       </>
                     )
