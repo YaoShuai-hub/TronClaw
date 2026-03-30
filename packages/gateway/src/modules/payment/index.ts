@@ -78,6 +78,11 @@ export async function sendPayment(
   const timestamp = Date.now()
   const network = getNetwork()
 
+  // Defensive check before SDK call (validateTronAddress calls .toLowerCase() internally)
+  if (!to || typeof to !== 'string') {
+    throw new Error(`[x402] Payment recipient address is required`)
+  }
+
   // x402 Protocol: validate address using @t402/tron SDK
   if (!validateTronAddress(to)) {
     throw new Error(`[x402] Invalid TRON address: ${to}`)
@@ -127,7 +132,10 @@ export async function sendPayment(
 
     return result
   } catch (error) {
-    throw new Error(`Payment failed: ${(error as Error).message}`)
+    const err = error as Error
+    console.error('[x402] transferTrc20 failed:', err.message)
+    console.error('[x402] Stack:', err.stack)
+    throw new Error(`Payment failed: ${err.message}`)
   }
 }
 

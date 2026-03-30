@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Send, Loader2, Zap, Bot, User, ExternalLink } from 'lucide-react'
+import { Send, Loader2, Zap, Bot, User, ExternalLink, Shield } from 'lucide-react'
 import axios from 'axios'
 import ReactMarkdown from 'react-markdown'
 import { useWallet } from '../stores/wallet.ts'
@@ -172,10 +172,43 @@ export default function Chat() {
   const { address: walletAddress } = useWallet()
   const { t } = useLang()
   const activeAddress = walletAddress ?? FALLBACK_ADDRESS
+  const [agentIdentity, setAgentIdentity] = useState<{
+    agentId: string; agentName: string; trustScore: number; identityTxHash: string; capabilities: string[]
+  } | null>(null)
+  const [registeringIdentity, setRegisteringIdentity] = useState(false)
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
+
+  useEffect(() => {
+    if (walletAddress) fetchIdentity(walletAddress)
+    else setAgentIdentity(null)
+  }, [walletAddress])
+
+  const fetchIdentity = async (addr: string) => {
+    try {
+      const { data } = await axios.get(`/api/v1/identity/reputation/agent_${addr.slice(0,16).toLowerCase()}`)
+      if (data.data) setAgentIdentity(data.data)
+    } catch {}
+  }
+
+  const registerIdentity = async () => {
+    if (!activeAddress || registeringIdentity) return
+    setRegisteringIdentity(true)
+    try {
+      const { data } = await axios.post('/api/v1/identity/register', {
+        agentName: `TronClaw Agent (${activeAddress.slice(0,8)}...)`,
+        capabilities: ['payment', 'defi', 'data', 'automation'],
+        ownerAddress: activeAddress,
+      })
+      setAgentIdentity(data.data)
+    } catch (e) {
+      console.error('Identity registration failed:', e)
+    } finally {
+      setRegisteringIdentity(false)
+    }
+  }
 
   const sendMessage = async (text: string) => {
     if (!text.trim() || loading) return
@@ -230,6 +263,48 @@ export default function Chat() {
           </div>
         </div>
       </div>
+
+      {/* 8004 Identity Banner */}
+      {walletAddress && (
+        <div className={`mx-4 mt-3 rounded-xl border p-3 flex items-center gap-3 ${
+          agentIdentity ? 'border-accent/20 bg-accent/5' : 'border-white/[0.06] bg-bg-2'
+        }`}>
+          <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${
+            agentIdentity ? 'bg-accent/15' : 'bg-bg-4'
+          }`}>
+            <Shield size={14} className={agentIdentity ? 'text-accent' : 'text-text-3'} />
+          </div>
+          <div className="flex-1 min-w-0">
+            {agentIdentity ? (
+              <>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-semibold text-text-0">{agentIdentity.agentName}</span>
+                  <span className="badge badge-green !text-[9px]">8004 ✓</span>
+                  <span className="text-[10px] text-accent font-medium">Trust {agentIdentity.trustScore}</span>
+                </div>
+                <div className="text-[10px] text-text-3 font-mono truncate">{agentIdentity.agentId}</div>
+              </>
+            ) : (
+              <>
+                <div className="text-xs font-medium text-text-1">No Agent Identity</div>
+                <div className="text-[10px] text-text-3">Register 8004 on-chain identity to start</div>
+              </>
+            )}
+          </div>
+          {!agentIdentity && (
+            <button onClick={registerIdentity} disabled={registeringIdentity}
+              className="btn-primary !text-[10px] !py-1.5 !px-3 flex-shrink-0 disabled:opacity-50">
+              {registeringIdentity ? 'Registering...' : '📋 Register Agent'}
+            </button>
+          )}
+          {agentIdentity?.identityTxHash && !agentIdentity.identityTxHash.startsWith('8004_local') && (
+            <a href={`https://nile.tronscan.org/#/transaction/${agentIdentity.identityTxHash}`}
+              target="_blank" className="flex-shrink-0">
+              <ExternalLink size={12} className="text-text-3 hover:text-brand transition-colors" />
+            </a>
+          )}
+        </div>
+      )}
 
       {/* Messages */}
       <div className="flex-1 overflow-y-auto px-4 py-5 space-y-4">

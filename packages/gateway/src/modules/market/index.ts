@@ -81,10 +81,13 @@ export async function invokeService(
   const now = Date.now()
 
   // 1. Execute x402 payment
+  // ownerAddress: service provider's receiving address (stored in DB or gateway wallet as fallback)
   let txHash: string | null = null
-  if (!isMockMode()) {
+  const walletInfo = getWalletAddress()
+  const ownerAddress: string | undefined = (service as Service & { ownerAddress?: string }).ownerAddress ?? walletInfo.address
+  if (!isMockMode() && ownerAddress) {
     const payResult = await sendPayment(
-      getWalletAddress().address,
+      ownerAddress,
       service.price,
       service.token as TokenSymbol,
       `TronClaw SealPay: ${service.name}`,

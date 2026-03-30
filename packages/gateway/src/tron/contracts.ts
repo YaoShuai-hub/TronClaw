@@ -8,6 +8,7 @@ const TRC20_ABI = [
     inputs: [{ name: 'owner', type: 'address' }],
     name: 'balanceOf',
     outputs: [{ name: '', type: 'uint256' }],
+    stateMutability: 'view',
     type: 'Function',
   },
   {
@@ -18,6 +19,7 @@ const TRC20_ABI = [
     ],
     name: 'transfer',
     outputs: [{ name: '', type: 'bool' }],
+    stateMutability: 'nonpayable',
     type: 'Function',
   },
   {
@@ -25,6 +27,7 @@ const TRC20_ABI = [
     inputs: [],
     name: 'decimals',
     outputs: [{ name: '', type: 'uint8' }],
+    stateMutability: 'view',
     type: 'Function',
   },
   {
@@ -32,6 +35,7 @@ const TRC20_ABI = [
     inputs: [],
     name: 'symbol',
     outputs: [{ name: '', type: 'string' }],
+    stateMutability: 'view',
     type: 'Function',
   },
   {
@@ -39,6 +43,7 @@ const TRC20_ABI = [
     inputs: [],
     name: 'name',
     outputs: [{ name: '', type: 'string' }],
+    stateMutability: 'view',
     type: 'Function',
   },
 ]
@@ -85,12 +90,20 @@ export async function transferTrc20(
   const contractAddress = TOKEN_CONTRACTS[network][token]
   const decimals = TOKEN_DECIMALS[token]
 
+  // Ensure defaultAddress is set — TronWeb .send() needs hex address internally
+  const fromBase58 = tw.defaultAddress.base58 as string | false
+  const fromHex = tw.defaultAddress.hex as string | false
+  if (!fromBase58 || !fromHex) {
+    throw new Error('[TronWeb] Wallet address not initialized — check TRON_PRIVATE_KEY')
+  }
+
   const rawAmount = BigInt(Math.floor(parseFloat(amount) * Math.pow(10, decimals)))
 
   const contract = await tw.contract(TRC20_ABI, contractAddress)
   const tx = await contract.transfer(to, rawAmount.toString()).send({
     feeLimit: 40_000_000, // 40 TRX fee limit
     shouldPollResponse: false,
+    from: fromBase58, // explicitly provide sender to avoid TronWeb internal undefined.toLowerCase()
   })
 
   return tx as string
