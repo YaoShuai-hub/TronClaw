@@ -102,19 +102,23 @@ export default function DeFi() {
         if (data.data?.unsignedTx) {
           const unsignedTx = data.data.unsignedTx as Record<string, unknown>
           if (unsignedTx._demo) {
-            // Use TRX transfer as swap proof — more reliable than contract calls on Nile
-            // Send toAmountSun (in SUN units) worth of TRX as symbolic swap demonstration
-            // 1 SUN = 0.000001 TRX, very negligible
+            // Demo Swap: call Nile USDT contract transfer(self, toAmount)
+            // Shows TronLink popup with real swap output amount (~31.8 USDT for 100 TRX)
             try {
-              const SWAP_PROOF_AMOUNT = 1 // 1 SUN
-              const SWAP_PROOF_TO = 'TVF2Mp9QY7FEGTnr3DBpFLobA6jguHyMvi' // TronClaw registry
-              const unsignedTransfer = await tronWeb.transactionBuilder.sendTrx(
-                SWAP_PROOF_TO,
-                SWAP_PROOF_AMOUNT,
+              const NILE_USDT = 'TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf'
+              const toAmountFloat = parseFloat(data.data.toAmount ?? swapAmount)
+              const toAmountUnits = Math.floor(toAmountFloat * 1_000_000) // 6 decimals
+              const { transaction } = await tronWeb.transactionBuilder.triggerSmartContract(
+                NILE_USDT,
+                'transfer(address,uint256)',
+                { feeLimit: 100_000_000, callValue: 0 },
+                [
+                  { type: 'address', value: userAddress },
+                  { type: 'uint256', value: toAmountUnits },
+                ],
                 userAddress
               )
-              // This triggers TronLink popup ↓
-              const signedTx = await tronWeb.trx.sign(unsignedTransfer) as { txID?: string }
+              const signedTx = await tronWeb.trx.sign(transaction) as { txID?: string }
               await tronWeb.trx.sendRawTransaction(signedTx)
               const txId = signedTx.txID ?? ''
               const scanUrl = `https://nile.tronscan.org/#/transaction/${txId}`
