@@ -17,6 +17,7 @@
     "@anthropic-ai/sdk": "^0.29.0",
     "@google/generative-ai": "^0.24.1",
     "@modelcontextprotocol/sdk": "^1.10.1",
+    "@t402/tron": "^2.8.0",
     "@tronclaw/shared": "workspace:*",
     "axios": "^1.7.2",
     "better-sqlite3": "^11.0.0",

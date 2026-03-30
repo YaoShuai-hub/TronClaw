@@ -1,8 +1,16 @@
 /**
  * Payment Module — x402 Protocol + TRC20 transfers
  * Bank of AI infrastructure: x402 Payment Protocol + Skills Modules
+ * Uses @t402/tron SDK for address validation, amount conversion, and x402 payment requirements
  */
 import { v4 as uuidv4 } from 'uuid'
+import {
+  validateTronAddress,
+  convertToSmallestUnits,
+  convertFromSmallestUnits,
+  getTRC20Config,
+  isNetworkSupported,
+} from '@t402/tron'
 import { getNetwork, isMockMode } from '../../tron/client.js'
 import { getWalletAddress } from '../../tron/wallet.js'
 import { getTrxBalance, getTrc20Balance, transferTrc20 } from '../../tron/contracts.js'
@@ -68,20 +76,34 @@ export async function sendPayment(
 ): Promise<PaymentResult> {
   const { address: from } = getWalletAddress()
   const timestamp = Date.now()
+  const network = getNetwork()
+
+  // x402 Protocol: validate address using @t402/tron SDK
+  if (!validateTronAddress(to)) {
+    throw new Error(`[x402] Invalid TRON address: ${to}`)
+  }
+
+  // x402 Protocol: get token config and convert amount using @t402/tron SDK
+  const caip2Network = `tron:${network}` // e.g. 'tron:nile'
+  const networkSupported = isNetworkSupported(caip2Network)
+  const tokenConfig = networkSupported ? getTRC20Config(caip2Network, token) : null
+  const decimals = tokenConfig?.decimals ?? 6
+  const amountInSmallestUnits = convertToSmallestUnits(amount, decimals)
+  const readableAmount = convertFromSmallestUnits(amountInSmallestUnits, decimals)
+
+  console.log(`[x402] Payment: ${readableAmount} ${token} → ${to} (${caip2Network}, contract: ${tokenConfig?.contractAddress ?? 'unknown'})`)
 
   if (isMockMode()) {
     const mockTx: PaymentResult = {
-      txHash: `mock_tx_${uuidv4().replace(/-/g, '').slice(0, 32)}`,
+      txHash: `x402_mock_${uuidv4().replace(/-/g, '').slice(0, 32)}`,
       from,
       to,
-      amount,
+      amount: readableAmount,
       token,
       status: 'confirmed',
       timestamp,
     }
-    // Log to DB
     logTransaction(mockTx)
-    // Broadcast WebSocket event
     broadcast('transaction', mockTx)
     broadcast('payment_confirmed', mockTx)
     return mockTx
@@ -120,6 +142,27 @@ export async function createPaymentRequest(
   const payId = uuidv4()
   const now = Date.now()
   const expiresAt = now + 30 * 60 * 1000 // 30 minutes
+  const network = getNetwork()
+
+  // x402 Protocol: build standard payment requirement using @t402/tron SDK
+  const caip2Network = `tron:${network}`
+  const tokenConfig = isNetworkSupported(caip2Network) ? getTRC20Config(caip2Network, token) : null
+  const decimals = tokenConfig?.decimals ?? 6
+  const amountInSmallestUnits = convertToSmallestUnits(amount, decimals)
+
+  // x402-compliant payment requirement object
+  const x402PaymentRequirement = {
+    scheme: 'exact',
+    network: caip2Network,
+    maxAmountRequired: amountInSmallestUnits.toString(),
+    resource: `${process.env.GATEWAY_URL ?? 'http://localhost:3000'}/api/v1/payment/${payId}`,
+    description,
+    mimeType: 'application/json',
+    payTo: recipientAddress,
+    maxTimeoutSeconds: 1800,
+    asset: tokenConfig?.contractAddress ?? token,
+    extra: { name: tokenConfig?.name ?? token, version: '1' },
+  }
 
   const paymentRequest: PaymentRequest = {
     payId,
@@ -139,7 +182,9 @@ export async function createPaymentRequest(
     VALUES (?, ?, ?, ?, ?, 'pending', ?, ?)
   `).run(payId, amount, token, description, recipientAddress, now, expiresAt)
 
-  return paymentRequest
+  console.log(`[x402] Payment requirement created: ${JSON.stringify(x402PaymentRequirement).slice(0, 120)}`)
+
+  return { ...paymentRequest, x402: x402PaymentRequirement } as PaymentRequest & { x402: typeof x402PaymentRequirement }
 }
 
 // ─── Payment Status ───────────────────────────────────────────────────────────
