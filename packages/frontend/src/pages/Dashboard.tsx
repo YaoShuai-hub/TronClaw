@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Activity, DollarSign, TrendingUp, Bot, ExternalLink, Wallet, Zap } from 'lucide-react'
 import axios from 'axios'
+import { useWallet } from '../stores/wallet.ts'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
 
 interface AgentToolCall {
@@ -18,7 +19,6 @@ interface AgentToolCall {
 interface BalanceData { token: string; balance: string; usdValue: string }
 interface DeFiPool { protocol: string; name: string; apy: string; tvl: string; riskLevel: string }
 
-const DEMO_ADDRESS = 'TFp3Ls4mHdzysbX1qxbwXdMzS8mkvhCMx6'
 const TRONSCAN = 'https://nile.tronscan.org/#'
 
 function formatNum(n: string) {
@@ -68,6 +68,8 @@ function CountUp({ value, decimals = 2 }: { value: number; decimals?: number }) 
 }
 
 export default function Dashboard() {
+  const { address: walletAddress } = useWallet()
+  const DEMO_ADDRESS = walletAddress ?? 'TFp3Ls4mHdzysbX1qxbwXdMzS8mkvhCMx6'
   const [agentCalls, setAgentCalls] = useState<AgentToolCall[]>([])
   const [balances, setBalances] = useState<BalanceData[]>([])
   const [pools, setPools] = useState<DeFiPool[]>([])
