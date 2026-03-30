@@ -153,6 +153,7 @@ function TypeWriter({ text, speed = 15 }: { text: string; speed?: number }) {
     }, speed)
     return () => clearInterval(iv)
   }, [text, speed])
+  if (done) return <ReactMarkdown>{text}</ReactMarkdown>
   return <>{displayed}{!done && <span className="inline-block w-0.5 h-4 bg-brand animate-pulse ml-0.5" />}</>
 }
 
