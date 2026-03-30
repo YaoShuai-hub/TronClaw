@@ -210,6 +210,108 @@ Always use tools before answering. Respond in the user's language (Chinese if th
   return { response: text, toolCalls: toolCallLog }
 }
 
+// ─── Bank of AI provider (minimax-m2.5) ─────────────────────────────────────
+
+async function runBankOfAI(
+  message: string,
+  history: Array<{ role: string; content: string }>,
+  walletAddress: string,
+): Promise<{ response: string; toolCalls: unknown[] }> {
+  const apiKey = process.env.BANK_OF_AI_API_KEY
+  const baseUrl = process.env.BANK_OF_AI_API_URL ?? 'https://api.bankofai.io/v1'
+  if (!apiKey) throw new Error('BANK_OF_AI_API_KEY not configured')
+
+  const systemPrompt = `You are TronClaw AI Agent — powered by Bank of AI (minimax-m2.5) with full TRON blockchain capabilities.
+${walletAddress ? `User wallet: ${walletAddress}` : ''}
+Network: ${process.env.TRON_NETWORK ?? 'nile'} testnet
+
+IMPORTANT: When user asks to stake/supply/invest/deposit into DeFi:
+1. Call tron_defi_yields to get current rates
+2. Call tron_yield_optimize with their portfolio and riskPreference="low"
+3. Call tron_defi_supply to execute the best strategy
+4. Return a formatted report wrapped in [DEFI_REPORT] tags like this:
+
+[DEFI_REPORT]
+{"protocol":"JustLend","pool":"USDT Supply","amount":"1000","token":"USDT","apy":"8.52","txHash":"<from tool>","steps":["Analyzed 7 pools","Selected lowest risk","Supplied to JustLend","Transaction confirmed"],"estimatedMonthly":"7.10","estimatedYearly":"85.20"}
+[/DEFI_REPORT]
+
+Always use tools before answering. Respond in the user's language (Chinese if they write Chinese).`
+
+  // Build OpenAI-format messages
+  const filteredHistory = history.filter((_, i) => !(i === 0 && history[0]?.role === 'assistant'))
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const messages: any[] = [
+    { role: 'system', content: systemPrompt },
+    ...filteredHistory.map(h => ({ role: h.role === 'assistant' ? 'assistant' : 'user', content: h.content })),
+    { role: 'user', content: message },
+  ]
+
+  // Convert TOOL_DEFS to OpenAI format
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const tools = TOOL_DEFS.map((t: any) => ({
+    type: 'function',
+    function: {
+      name: t.name,
+      description: t.description,
+      parameters: {
+        type: 'object',
+        properties: t.parameters.properties ?? {},
+        required: t.parameters.required ?? [],
+      },
+    },
+  }))
+
+  const toolCallLog: unknown[] = []
+
+  // Agentic tool-use loop
+  while (true) {
+    const response = await fetch(`${baseUrl}/chat/completions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: 'minimax-m2.5',
+        messages,
+        tools,
+        tool_choice: 'auto',
+        max_tokens: 2048,
+      }),
+    })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const data: any = await response.json()
+
+    if (!response.ok) throw new Error(data?.error?.message ?? `Bank of AI error ${response.status}`)
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const choice = data.choices?.[0] as any
+    const finishReason = choice?.finish_reason
+    const assistantMsg = choice?.message
+
+    if (finishReason !== 'tool_calls' || !assistantMsg?.tool_calls?.length) {
+      // Final text response
+      return { response: assistantMsg?.content ?? '', toolCalls: toolCallLog }
+    }
+
+    // Execute tool calls
+    messages.push({ role: 'assistant', content: assistantMsg.content ?? '', tool_calls: assistantMsg.tool_calls })
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    for (const tc of assistantMsg.tool_calls as any[]) {
+      const fnName = tc.function.name as string
+      const fnArgs = JSON.parse(tc.function.arguments ?? '{}') as Record<string, unknown>
+      const toolResult = await executeTool(fnName, fnArgs)
+      toolCallLog.push({ tool: fnName, input: fnArgs, result: toolResult })
+      messages.push({
+        role: 'tool',
+        tool_call_id: tc.id,
+        content: JSON.stringify(toolResult),
+      })
+    }
+  }
+}
+
 // ─── Local Agent (fallback when LLM unavailable) ───────────────────────────
 
 async function runLocalAgent(
@@ -323,21 +425,23 @@ const messageHandler: RequestHandler = async (req, res) => {
     const provider = process.env.LLM_PROVIDER ?? 'gemini'
     const hasGemini = !!process.env.GEMINI_API_KEY
     const hasAnthropic = !!process.env.ANTHROPIC_API_KEY
+    const hasBankOfAI = !!process.env.BANK_OF_AI_API_KEY
 
-    if ((provider === 'gemini' && !hasGemini) || (provider === 'anthropic' && !hasAnthropic)) {
-      res.json(ok({ response: `[Demo Mode] 收到："${message}"。请配置 GEMINI_API_KEY 启用真实 AI 对话。`, toolCalls: [] }))
-      return
-    }
-
-    const result = provider === 'gemini' && hasGemini
-      ? await runGemini(message, history, walletAddress).catch(async (e: Error) => {
-          // Fallback if region blocked or quota exceeded — try smart local execution
-          console.warn('[Chat] Gemini error, trying local execution:', e.message)
+    // Bank of AI (minimax-m2.5) takes highest priority when configured
+    const result = hasBankOfAI
+      ? await runBankOfAI(message, history, walletAddress).catch(async (e: Error) => {
+          console.warn('[Chat] Bank of AI error, falling back:', e.message)
           return runLocalAgent(message, walletAddress)
         })
-      : provider === 'anthropic' && hasAnthropic
-        ? await runAnthropic(message, history, walletAddress)
-        : runLocalAgent(message, walletAddress)
+      : provider === 'gemini' && hasGemini
+        ? await runGemini(message, history, walletAddress).catch(async (e: Error) => {
+            // Fallback if region blocked or quota exceeded — try smart local execution
+            console.warn('[Chat] Gemini error, trying local execution:', e.message)
+            return runLocalAgent(message, walletAddress)
+          })
+        : provider === 'anthropic' && hasAnthropic
+          ? await runAnthropic(message, history, walletAddress)
+          : runLocalAgent(message, walletAddress)
 
     res.json(ok(result))
   } catch (e) {
