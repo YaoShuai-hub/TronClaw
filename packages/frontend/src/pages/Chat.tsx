@@ -176,6 +176,8 @@ export default function Chat() {
     agentId: string; agentName: string; trustScore: number; identityTxHash: string; capabilities: string[]
   } | null>(null)
   const [registeringIdentity, setRegisteringIdentity] = useState(false)
+  const [connectAgentId, setConnectAgentId] = useState('')
+  const [showConnectInput, setShowConnectInput] = useState(false)
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -207,6 +209,20 @@ export default function Chat() {
       console.error('Identity registration failed:', e)
     } finally {
       setRegisteringIdentity(false)
+    }
+  }
+
+  const connectIdentity = async () => {
+    if (!connectAgentId.trim()) return
+    try {
+      const { data } = await axios.get(`/api/v1/identity/reputation/${connectAgentId.trim()}`)
+      if (data.data) {
+        setAgentIdentity(data.data)
+        setShowConnectInput(false)
+        setConnectAgentId('')
+      }
+    } catch {
+      alert('Agent not found. Please check the Agent ID.')
     }
   }
 
@@ -264,45 +280,78 @@ export default function Chat() {
         </div>
       </div>
 
-      {/* 8004 Identity Banner */}
-      {walletAddress && (
-        <div className={`mx-4 mt-3 rounded-xl border p-3 flex items-center gap-3 ${
-          agentIdentity ? 'border-accent/20 bg-accent/5' : 'border-white/[0.06] bg-bg-2'
-        }`}>
-          <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${
-            agentIdentity ? 'bg-accent/15' : 'bg-bg-4'
-          }`}>
-            <Shield size={14} className={agentIdentity ? 'text-accent' : 'text-text-3'} />
+      {/* 8004 Identity Gate */}
+      {walletAddress && !agentIdentity && (
+        <div className="mx-4 mt-3 rounded-2xl border border-brand/20 bg-brand/5 p-5">
+          <div className="flex items-center gap-2 mb-3">
+            <Shield size={16} className="text-brand" />
+            <span className="text-sm font-semibold text-text-0">8004 Agent Identity Required</span>
+            <span className="badge badge-orange !text-[9px]">Bank of AI</span>
+          </div>
+          <p className="text-xs text-text-3 mb-4">
+            Connect or register your AI Agent's on-chain identity (8004 Protocol) to start chatting with TronClaw AI.
+          </p>
+          {!showConnectInput ? (
+            <div className="flex gap-2">
+              <button onClick={registerIdentity} disabled={registeringIdentity}
+                className="btn-primary !text-xs !py-2 !px-4 disabled:opacity-50 flex-1">
+                {registeringIdentity ? (
+                  <><Loader2 size={12} className="animate-spin inline mr-1" />Registering on-chain...</>
+                ) : '📋 Register New Agent'}
+              </button>
+              <button onClick={() => setShowConnectInput(true)}
+                className="flex-1 text-xs py-2 px-4 rounded-xl border border-white/[0.08] text-text-2 hover:border-brand/30 hover:text-brand transition-all">
+                🔗 Connect Existing Agent
+              </button>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <input value={connectAgentId} onChange={e => setConnectAgentId(e.target.value)}
+                placeholder="Enter Agent ID (e.g. agent_xxxxxxxxxxxxxxxx)"
+                className="w-full bg-bg-4 border border-white/[0.06] rounded-xl px-3 py-2.5 text-sm text-text-0 placeholder-text-3 outline-none focus:border-brand/40 font-mono text-xs"
+              />
+              <div className="flex gap-2">
+                <button onClick={connectIdentity}
+                  className="btn-primary !text-xs !py-2 !px-4 flex-1">
+                  Connect Agent
+                </button>
+                <button onClick={() => { setShowConnectInput(false); setConnectAgentId('') }}
+                  className="text-xs py-2 px-4 rounded-xl border border-white/[0.06] text-text-3 hover:text-text-0 transition-all">
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* 8004 Identity Connected Banner */}
+      {walletAddress && agentIdentity && (
+        <div className="mx-4 mt-3 rounded-xl border border-accent/20 bg-accent/5 p-3 flex items-center gap-3">
+          <div className="w-8 h-8 rounded-lg bg-accent/15 flex items-center justify-center flex-shrink-0">
+            <Shield size={14} className="text-accent" />
           </div>
           <div className="flex-1 min-w-0">
-            {agentIdentity ? (
-              <>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-semibold text-text-0">{agentIdentity.agentName}</span>
-                  <span className="badge badge-green !text-[9px]">8004 ✓</span>
-                  <span className="text-[10px] text-accent font-medium">Trust {agentIdentity.trustScore}</span>
-                </div>
-                <div className="text-[10px] text-text-3 font-mono truncate">{agentIdentity.agentId}</div>
-              </>
-            ) : (
-              <>
-                <div className="text-xs font-medium text-text-1">No Agent Identity</div>
-                <div className="text-[10px] text-text-3">Register 8004 on-chain identity to start</div>
-              </>
-            )}
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-semibold text-text-0">{agentIdentity.agentName}</span>
+              <span className="badge badge-green !text-[9px]">8004 ✓</span>
+              <span className="text-[10px] text-accent font-medium">Trust {agentIdentity.trustScore}</span>
+            </div>
+            <div className="text-[10px] text-text-3 font-mono truncate">{agentIdentity.agentId}</div>
           </div>
-          {!agentIdentity && (
-            <button onClick={registerIdentity} disabled={registeringIdentity}
-              className="btn-primary !text-[10px] !py-1.5 !px-3 flex-shrink-0 disabled:opacity-50">
-              {registeringIdentity ? 'Registering...' : '📋 Register Agent'}
+          <div className="flex items-center gap-1.5 flex-shrink-0">
+            {agentIdentity.identityTxHash && !agentIdentity.identityTxHash.startsWith('8004_') && (
+              <a href={`https://nile.tronscan.org/#/transaction/${agentIdentity.identityTxHash}`}
+                target="_blank" title="View on TronScan"
+                className="text-[9px] text-brand/70 hover:text-brand flex items-center gap-0.5 transition-colors">
+                on-chain <ExternalLink size={9} />
+              </a>
+            )}
+            <button onClick={() => setAgentIdentity(null)}
+              className="text-[10px] text-text-3 hover:text-red-400 transition-colors px-1">
+              ✕
             </button>
-          )}
-          {agentIdentity?.identityTxHash && !agentIdentity.identityTxHash.startsWith('8004_local') && (
-            <a href={`https://nile.tronscan.org/#/transaction/${agentIdentity.identityTxHash}`}
-              target="_blank" className="flex-shrink-0">
-              <ExternalLink size={12} className="text-text-3 hover:text-brand transition-colors" />
-            </a>
-          )}
+          </div>
         </div>
       )}
 
@@ -401,11 +450,12 @@ export default function Chat() {
             onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(input) } }}
             placeholder={t("askAnything")}
             rows={1}
-            className="flex-1 bg-transparent text-sm text-text-0 placeholder-text-3 resize-none outline-none px-2 py-1.5 max-h-28"
+            disabled={!agentIdentity && !!walletAddress}
+            className="flex-1 bg-transparent text-sm text-text-0 placeholder-text-3 resize-none outline-none px-2 py-1.5 max-h-28 disabled:opacity-40 disabled:cursor-not-allowed"
           />
           <button
             onClick={() => sendMessage(input)}
-            disabled={!input.trim() || loading}
+            disabled={!input.trim() || loading || (!agentIdentity && !!walletAddress)}
             className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 self-end transition-all duration-200
               disabled:bg-bg-4 disabled:text-text-3 bg-brand hover:shadow-[0_0_20px_rgba(249,115,22,0.3)] text-white"
           >
