@@ -158,13 +158,36 @@ function TypeWriter({ text, speed = 15 }: { text: string; speed?: number }) {
 }
 
 export default function Chat() {
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: '0', role: 'assistant',
-      content: '你好！我是 TronClaw AI Agent 🦀\n\n我可以帮你完成 TRON 链上操作：查余额、发送支付、DeFi 收益优化、鲸鱼追踪、自动交易...\n\n连接你的钱包或直接输入指令开始吧！',
-      timestamp: Date.now(),
-    },
-  ])
+  // Load messages from localStorage, or use default greeting
+  const [messages, setMessages] = useState<Message[]>(() => {
+    try {
+      const saved = localStorage.getItem('tronclaw_chat_messages')
+      if (saved) {
+        const parsed = JSON.parse(saved) as Message[]
+        return parsed.length > 0 ? parsed : [
+          {
+            id: '0', role: 'assistant',
+            content: '你好！我是 TronClaw AI Agent 🦀\n\n我可以帮你完成 TRON 链上操作：查余额、发送支付、DeFi 收益优化、鲸鱼追踪、自动交易...\n\n连接你的钱包或直接输入指令开始吧！',
+            timestamp: Date.now(),
+          },
+        ]
+      }
+    } catch {
+      // If localStorage parse fails, use default
+    }
+    return [
+      {
+        id: '0', role: 'assistant',
+        content: '你好！我是 TronClaw AI Agent 🦀\n\n我可以帮你完成 TRON 链上操作：查余额、发送支付、DeFi 收益优化、鲸鱼追踪、自动交易...\n\n连接你的钱包或直接输入指令开始吧！',
+        timestamp: Date.now(),
+      },
+    ]
+  })
+  
+  // Save messages to localStorage whenever they change
+  useEffect(() => {
+    localStorage.setItem('tronclaw_chat_messages', JSON.stringify(messages))
+  }, [messages])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
@@ -260,6 +283,83 @@ export default function Chat() {
     }
   }
 
+  // Gate: no wallet connected
+  if (!walletAddress) {
+    return (
+      <div className="h-full flex flex-col items-center justify-center gap-6 px-6">
+        <div className="w-16 h-16 rounded-2xl bg-brand/10 flex items-center justify-center">
+          <Bot size={32} className="text-brand" />
+        </div>
+        <div className="text-center space-y-2">
+          <h2 className="text-lg font-bold text-text-0">TronClaw AI Agent</h2>
+          <p className="text-sm text-text-3 max-w-xs">请先连接钱包，然后注册或连接你的 8004 Agent Identity，才能开始对话。</p>
+        </div>
+        <div className="flex items-center gap-2 text-xs text-text-3">
+          <span className="w-5 h-5 rounded-full bg-bg-3 flex items-center justify-center text-[10px] font-bold">1</span>
+          连接钱包
+          <span className="text-text-3/30">→</span>
+          <span className="w-5 h-5 rounded-full bg-bg-3 flex items-center justify-center text-[10px] font-bold">2</span>
+          注册 / 连接 Agent
+          <span className="text-text-3/30">→</span>
+          <span className="w-5 h-5 rounded-full bg-bg-3 flex items-center justify-center text-[10px] font-bold">3</span>
+          开始对话
+        </div>
+      </div>
+    )
+  }
+
+  // Gate: wallet connected but no agent identity
+  if (!agentIdentity) {
+    return (
+      <div className="h-full flex flex-col items-center justify-center gap-6 px-6">
+        <div className="w-16 h-16 rounded-2xl bg-brand/10 flex items-center justify-center">
+          <Shield size={32} className="text-brand" />
+        </div>
+        <div className="text-center space-y-2">
+          <h2 className="text-lg font-bold text-text-0">8004 Agent Identity Required</h2>
+          <p className="text-sm text-text-3 max-w-sm">
+            在开始对话前，请注册新 Agent 或连接已有的 Agent Identity（8004 Protocol）。
+          </p>
+          <div className="inline-flex items-center gap-1.5 px-2 py-1 rounded-full bg-orange-500/10 border border-orange-500/20">
+            <span className="text-[10px] text-orange-400 font-medium">Bank of AI · 8004 Protocol</span>
+          </div>
+        </div>
+
+        {!showConnectInput ? (
+          <div className="flex gap-3 w-full max-w-sm">
+            <button onClick={registerIdentity} disabled={registeringIdentity}
+              className="btn-primary !text-sm !py-2.5 !px-5 disabled:opacity-50 flex-1 flex items-center justify-center gap-2">
+              {registeringIdentity
+                ? <><Loader2 size={14} className="animate-spin" />Registering...</>
+                : <><span>📋</span>Register New Agent</>
+              }
+            </button>
+            <button onClick={() => setShowConnectInput(true)}
+              className="flex-1 text-sm py-2.5 px-5 rounded-xl border border-white/[0.08] text-text-2 hover:border-brand/30 hover:text-brand transition-all">
+              🔗 Connect Existing
+            </button>
+          </div>
+        ) : (
+          <div className="space-y-3 w-full max-w-sm">
+            <input value={connectAgentId} onChange={e => setConnectAgentId(e.target.value)}
+              placeholder="Enter Agent ID (e.g. agent_xxxxxxxxxxxxxxxx)"
+              className="w-full bg-bg-3 border border-white/[0.08] rounded-xl px-4 py-3 text-sm text-text-0 placeholder-text-3 outline-none focus:border-brand/40 font-mono"
+            />
+            <div className="flex gap-2">
+              <button onClick={connectIdentity} className="btn-primary !text-sm !py-2.5 flex-1">
+                Connect Agent
+              </button>
+              <button onClick={() => { setShowConnectInput(false); setConnectAgentId('') }}
+                className="text-sm py-2.5 px-4 rounded-xl border border-white/[0.06] text-text-3 hover:text-text-0 transition-all">
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    )
+  }
+
   return (
     <div className="h-full flex flex-col">
       {/* Header */}
@@ -279,51 +379,6 @@ export default function Chat() {
           </div>
         </div>
       </div>
-
-      {/* 8004 Identity Gate */}
-      {walletAddress && !agentIdentity && (
-        <div className="mx-4 mt-3 rounded-2xl border border-brand/20 bg-brand/5 p-5">
-          <div className="flex items-center gap-2 mb-3">
-            <Shield size={16} className="text-brand" />
-            <span className="text-sm font-semibold text-text-0">8004 Agent Identity Required</span>
-            <span className="badge badge-orange !text-[9px]">Bank of AI</span>
-          </div>
-          <p className="text-xs text-text-3 mb-4">
-            Connect or register your AI Agent's on-chain identity (8004 Protocol) to start chatting with TronClaw AI.
-          </p>
-          {!showConnectInput ? (
-            <div className="flex gap-2">
-              <button onClick={registerIdentity} disabled={registeringIdentity}
-                className="btn-primary !text-xs !py-2 !px-4 disabled:opacity-50 flex-1">
-                {registeringIdentity ? (
-                  <><Loader2 size={12} className="animate-spin inline mr-1" />Registering on-chain...</>
-                ) : '📋 Register New Agent'}
-              </button>
-              <button onClick={() => setShowConnectInput(true)}
-                className="flex-1 text-xs py-2 px-4 rounded-xl border border-white/[0.08] text-text-2 hover:border-brand/30 hover:text-brand transition-all">
-                🔗 Connect Existing Agent
-              </button>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              <input value={connectAgentId} onChange={e => setConnectAgentId(e.target.value)}
-                placeholder="Enter Agent ID (e.g. agent_xxxxxxxxxxxxxxxx)"
-                className="w-full bg-bg-4 border border-white/[0.06] rounded-xl px-3 py-2.5 text-sm text-text-0 placeholder-text-3 outline-none focus:border-brand/40 font-mono text-xs"
-              />
-              <div className="flex gap-2">
-                <button onClick={connectIdentity}
-                  className="btn-primary !text-xs !py-2 !px-4 flex-1">
-                  Connect Agent
-                </button>
-                <button onClick={() => { setShowConnectInput(false); setConnectAgentId('') }}
-                  className="text-xs py-2 px-4 rounded-xl border border-white/[0.06] text-text-3 hover:text-text-0 transition-all">
-                  Cancel
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
 
       {/* 8004 Identity Connected Banner */}
       {walletAddress && agentIdentity && (
@@ -441,6 +496,29 @@ export default function Chat() {
         </div>
       )}
 
+      {/* Clear Chat History Button */}
+      {messages.length > 1 && (
+        <div className="px-4 pb-2 flex justify-center">
+          <button
+            onClick={() => {
+              if (confirm('确定要清除聊天历史吗？')) {
+                setMessages([
+                  {
+                    id: '0', role: 'assistant',
+                    content: '你好！我是 TronClaw AI Agent 🦀\n\n我可以帮你完成 TRON 链上操作：查余额、发送支付、DeFi 收益优化、鲸鱼追踪、自动交易...\n\n连接你的钱包或直接输入指令开始吧！',
+                    timestamp: Date.now(),
+                  },
+                ])
+                localStorage.removeItem('tronclaw_chat_messages')
+              }
+            }}
+            className="text-xs px-3 py-1 rounded-full bg-red-500/10 border border-red-500/20 text-red-400 
+              hover:border-red-500/40 hover:bg-red-500/15 transition-all duration-200">
+            🗑️ Clear Chat History
+          </button>
+        </div>
+      )}
+
       {/* Input */}
       <div className="px-4 pb-4 pt-1">
         <div className="flex gap-2 bg-bg-2 rounded-2xl border border-white/[0.06] p-2 focus-within:border-brand/30 transition-colors">
@@ -450,12 +528,12 @@ export default function Chat() {
             onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(input) } }}
             placeholder={t("askAnything")}
             rows={1}
-            disabled={!agentIdentity && !!walletAddress}
-            className="flex-1 bg-transparent text-sm text-text-0 placeholder-text-3 resize-none outline-none px-2 py-1.5 max-h-28 disabled:opacity-40 disabled:cursor-not-allowed"
+            disabled={false}
+            className="flex-1 bg-transparent text-sm text-text-0 placeholder-text-3 resize-none outline-none px-2 py-1.5 max-h-28"
           />
           <button
             onClick={() => sendMessage(input)}
-            disabled={!input.trim() || loading || (!agentIdentity && !!walletAddress)}
+            disabled={!input.trim() || loading}
             className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 self-end transition-all duration-200
               disabled:bg-bg-4 disabled:text-text-3 bg-brand hover:shadow-[0_0_20px_rgba(249,115,22,0.3)] text-white"
           >
