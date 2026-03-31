@@ -51,7 +51,7 @@ export async function getTrxPrice(): Promise<{
     return result
   } catch {
     // Use last successful price if available, don't fall back to stale hardcoded value
-    const lastPrice = lastSuccessful.get('trx_price') as typeof result | undefined
+    const lastPrice = lastSuccessful.get('trx_price') as { price: string; marketCap: string; volume24h: string; change24h: string } | undefined
     if (lastPrice) return lastPrice
     return { price: '0.121', marketCap: '$10.8B', volume24h: '$1.05B', change24h: '0.00' }
   }

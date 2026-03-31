@@ -169,7 +169,7 @@ export async function analyzeAddress(address: string): Promise<AddressInfo> {
             decimals,
           }
         })
-        .filter((h): h is NonNullable<typeof h> => !!h && parseFloat(h.balance) > 0) as AddressInfo['tokenHoldings']
+        .filter((h: { symbol: string; balance: string; decimals: number } | null): h is NonNullable<typeof h> => !!h && parseFloat(h.balance) > 0) as AddressInfo['tokenHoldings']
 
       let txCount = 0
       try {

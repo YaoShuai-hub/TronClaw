@@ -399,7 +399,7 @@ ${report}
     const bal = await checkBalance(walletAddress || 'TFp3Ls4mHdzysbX1qxbwXdMzS8mkvhCMx6', 'USDT')
     toolCallLog.push({ tool: 'tron_check_balance', input: { address: walletAddress }, result: bal })
     return {
-      response: `您的钱包余额：\n• TRX: ${(bal as Record<string, string>).trx ?? '—'}\n• USDT: ${(bal as Record<string, string>).usdt ?? '—'}`,
+      response: `您的钱包余额：\n• TRX: ${(bal as unknown as Record<string, string>).trx ?? '—'}\n• USDT: ${(bal as unknown as Record<string, string>).usdt ?? '—'}`,
       toolCalls: toolCallLog,
     }
   }
