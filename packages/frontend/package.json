@@ -6,12 +6,12 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
+    "vercel-build": "tsc && vite build",
     "preview": "vite preview",
     "lint": "eslint src --ext .ts,.tsx",
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "@tronclaw/shared": "workspace:*",
     "@tronweb3/tronwallet-adapter-react-hooks": "^1.1.12",
     "@tronweb3/tronwallet-adapter-react-ui": "^1.1.13",
     "@tronweb3/tronwallet-adapters": "^1.2.23",

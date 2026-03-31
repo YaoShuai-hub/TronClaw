@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "pnpm --parallel --filter './packages/*' dev",
     "build": "pnpm --filter './packages/*' build",
+    "render-build": "pnpm --filter shared build && pnpm --filter gateway build",
     "test": "pnpm --filter './packages/*' test",
     "test:coverage": "pnpm --filter './packages/*' test:coverage",
     "lint": "pnpm --filter './packages/*' lint",
