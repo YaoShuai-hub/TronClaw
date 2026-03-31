@@ -63,7 +63,10 @@ export default function Overview() {
   }, [addr])
 
   useEffect(() => {
-    const ws = new WebSocket(`ws://${window.location.host}/ws`)
+    const wsUrl = import.meta.env.PROD
+      ? 'wss://tronclaw.onrender.com/ws'
+      : `ws://${window.location.host}/ws`
+    const ws = new WebSocket(wsUrl)
     ws.onmessage = (evt) => {
       try { const e = JSON.parse(evt.data); if (e.type === 'agent_tool_call') setAgentCalls(c => c + 1) } catch {}
     }
