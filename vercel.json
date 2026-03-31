@@ -4,10 +4,19 @@
   "outputDirectory": "packages/frontend/dist",
   "installCommand": "cd packages/frontend && npm install",
   "framework": null,
+  "rewrites": [
+    {
+      "source": "/api/:path*",
+      "destination": "https://tronclaw.onrender.com/api/:path*"
+    }
+  ],
   "routes": [
     {
-      "src": "/api/(.*)",
-      "dest": "https://tronclaw.onrender.com/api/$1"
+      "src": "/assets/(.*)",
+      "dest": "/assets/$1"
+    },
+    {
+      "handle": "filesystem"
     },
     {
       "src": "/(.*)",
